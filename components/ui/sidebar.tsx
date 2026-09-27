@@ -50,7 +50,7 @@ function SidebarProvider({
   )
 
   return (
-    <SidebarContext.Provider value={value}>
+    <SidebarContext.Provider value={value} >
       <TooltipProvider>
         <div
           data-slot="sidebar-wrapper"

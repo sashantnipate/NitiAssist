@@ -1,6 +1,6 @@
 "use client"
 
-import { MessageCircle, SquarePen } from "lucide-react"
+import { SquarePen } from "lucide-react"
 
 import {
   Sidebar,
@@ -12,15 +12,19 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Conversations } from "@/features/side-layout/components/Conversations"
+import Link from "next/link"
 
 export function AppSidebar() {
   const { state } = useSidebar()
 
   return (
-    <Sidebar className="bg-white">
+    <Sidebar>
       <SidebarHeader>
         <span
-          className={state === "collapsed" ? "sr-only" : "truncate text-sm font-semibold"}
+          className={
+            state === "collapsed" ? "sr-only" : "truncate text-sm font-semibold"
+          }
         >
           NitiAssist
         </span>
@@ -30,16 +34,20 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton type="button" tooltip="New chat" aria-label="New chat">
+            <SidebarMenuButton
+              type="button"
+              tooltip="New chat"
+              aria-label="New chat"
+              render={<Link href={`/`} />}
+            >
               <SquarePen />
-              <span className={state === "collapsed" ? "sr-only" : undefined}>New chat</span>
+              <span className={state === "collapsed" ? "sr-only" : undefined}>
+                New chat
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton type="button" tooltip="Messages" aria-label="Messages">
-              <MessageCircle />
-              <span className={state === "collapsed" ? "sr-only" : undefined}>Messages</span>
-            </SidebarMenuButton>
+            <Conversations />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
