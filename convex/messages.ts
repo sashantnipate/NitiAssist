@@ -101,3 +101,40 @@ export const getMessages = query({
       .collect();
   },
 });
+
+export const getRecentMessages = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const conversation = await ctx.db.get(
+      "conversations",
+      args.conversationId
+    );
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    if (conversation.ownerId !== identity.subject) {
+      throw new Error("Unauthorized access");
+    }
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .order("desc")
+      .collect();
+
+    return messages
+      .filter((message) => message.content.trim().length > 0)
+      .slice(0, 10)
+      .reverse()
+      .map(({ role, content }) => ({ role, content }));
+  },
+});

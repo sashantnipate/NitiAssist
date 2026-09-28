@@ -32,3 +32,14 @@ export const useMessages = (
       : "skip"
   );
 };
+
+export const useRecentMessages = (
+  conversationId: Id<"conversations"> | null
+) => {
+  return useQuery(
+    api.messages.getRecentMessages,
+    conversationId
+      ? { conversationId }
+      : "skip"
+  );
+};

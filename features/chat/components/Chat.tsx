@@ -10,6 +10,7 @@ import {
   useCreateConversation,
   useCreateMessageUser,
   useMessages,
+  useRecentMessages,
   useUpdateAssistantMessage,
 } from "@/hooks/useConversation"
 import { useRouter } from "next/navigation"
@@ -26,6 +27,7 @@ export function Chat({ conversationId = null }: ChatProps) {
   const { userId } = useAuth()
   const router = useRouter()
   const messages = useMessages(conversationId)
+  const recentMessages = useRecentMessages(conversationId)
   const createConversation = useCreateConversation()
   const createMessageUser = useCreateMessageUser()
   const updateAssistantMessage = useUpdateAssistantMessage()
@@ -55,6 +57,7 @@ export function Chat({ conversationId = null }: ChatProps) {
         prompt: text,
         assistantMessageId,
         conversationId: targetConversationId,
+        conversationContext: recentMessages ?? [],
       })
 
       if (!conversationId) {

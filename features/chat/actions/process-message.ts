@@ -7,12 +7,17 @@ type TriggerAgentArgs = {
   prompt: string;
   assistantMessageId: Id<"messages">;
   conversationId: Id<"conversations">;
+  conversationContext?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
 };
 
 export async function triggerChatAgent({
   prompt,
   assistantMessageId,
   conversationId,
+  conversationContext = [],
 }: TriggerAgentArgs) {
   await inngest.send({
     name: "chat/message.created",
@@ -20,6 +25,7 @@ export async function triggerChatAgent({
       prompt,
       assistantMessageId,
       conversationId,
+      conversationContext,
     },
   });
 

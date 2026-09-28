@@ -270,14 +270,28 @@ export const processChatMessage = inngest.createFunction(
       prompt,
       assistantMessageId,
       conversationId,
+      conversationContext = [],
     } = event.data as {
       prompt: string;
       assistantMessageId: Id<"messages">;
       conversationId: Id<"conversations">;
+      conversationContext?: Array<{
+        role: "user" | "assistant";
+        content: string;
+      }>;
     };
 
-
     void conversationId;
+
+    const history = conversationContext
+      .map(({ role, content }) =>
+        `${role === "user" ? "User" : "Assistant"}: ${content}`
+      )
+      .join("\n\n");
+
+    const promptWithContext = history
+      ? `Conversation history:\n${history}\n\nCurrent user request:\n${prompt}`
+      : `Current user request:\n${prompt}`;
 
     let finalAnswer = "";
 
@@ -287,10 +301,10 @@ export const processChatMessage = inngest.createFunction(
     try {
       console.log(
         "Starting financial policy network:",
-        prompt
+        promptWithContext
       );
 
-      const result = await network.run(prompt);
+      const result = await network.run(promptWithContext);
 
       console.log("Network completed.");
 
