@@ -23,6 +23,12 @@ type ChatProps = {
   conversationId?: Id<"conversations"> | null
 }
 
+function getConversationTitle(prompt: string) {
+  const title = prompt.trim().slice(0, 15)
+
+  return title || "New conversation"
+}
+
 export function Chat({ conversationId = null }: ChatProps) {
   const { userId } = useAuth()
   const router = useRouter()
@@ -45,7 +51,7 @@ export function Chat({ conversationId = null }: ChatProps) {
         conversationId ??
         (await createConversation({
           ownerId: userId,
-          title: "New conversation",
+          title: getConversationTitle(text),
         }))
 
       const { assistantMessageId } = await createMessageUser({

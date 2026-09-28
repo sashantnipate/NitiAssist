@@ -6,11 +6,13 @@ import {
 } from "@/components/ai-elements/conversation"
 import {
   Message,
+  MessageActions,
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message"
+import { Button } from "@/components/ui/button"
 import type { Doc } from "@/convex/_generated/dataModel"
-import { Loader2Icon } from "lucide-react"
+import { Copy, Loader } from "lucide-react"
 
 type ChatMessagesProps = {
   messages: Doc<"messages">[] | undefined
@@ -45,7 +47,7 @@ export function ChatMessages({
               {isProcessing ? (
                 <div aria-live="polite" className="flex items-center gap-2">
                   <MessageResponse>{content}</MessageResponse>
-                  <Loader2Icon
+                  <Loader
                     aria-label="Thinking"
                     className="size-5 animate-spin"
                   />
@@ -54,6 +56,23 @@ export function ChatMessages({
                 <MessageResponse>{content}</MessageResponse>
               )}
             </MessageContent>
+            <MessageActions className="ml-0 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 group-[.is-user]:ml-auto">
+              <Button
+                aria-label="Copy message"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(content)
+                  } catch {
+                    // Ignore clipboard failures when the browser blocks access.
+                  }
+                }}
+                size="icon"
+                title="Copy message"
+                variant="ghost"
+              >
+                <Copy className="size-4" />
+              </Button>
+            </MessageActions>
           </Message>
         )
       })}

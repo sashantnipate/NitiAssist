@@ -38,7 +38,7 @@ export function Conversations() {
           <PopoverHeader className="px-1">
             <PopoverTitle>Recent conversations</PopoverTitle>
           </PopoverHeader>
-          <ConversationList conversations={conversationItems} />
+          <ConversationList conversations={conversationItems} scrollable />
         </PopoverContent>
       </Popover>
     )
@@ -56,8 +56,10 @@ export function Conversations() {
 
 function ConversationList({
   conversations,
+  scrollable = false,
 }: {
   conversations: Array<{ _id: string; title: string }>
+  scrollable?: boolean
 }) {
   if (conversations.length === 0) {
     return (
@@ -68,7 +70,13 @@ function ConversationList({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div
+      className={
+        scrollable
+          ? "flex max-h-60 flex-col gap-1 overflow-y-auto pr-1"
+          : "flex flex-col gap-1"
+      }
+    >
       {conversations.map((conversation) => (
         <Button
           key={conversation._id}
