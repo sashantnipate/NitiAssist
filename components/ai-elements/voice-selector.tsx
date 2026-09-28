@@ -33,7 +33,12 @@ import {
   VenusIcon,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, useCallback, useContext, useMemo } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 
 interface VoiceSelectorContextValue {
   value: string | undefined;
@@ -80,9 +85,19 @@ export const VoiceSelector = ({
 
   const [open, setOpen] = useControllableState({
     defaultProp: defaultOpen,
-    onChange: onOpenChange,
+    onChange: undefined,
     prop: openProp,
   });
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean, eventDetails: Parameters<NonNullable<
+      VoiceSelectorProps["onOpenChange"]
+    >>[1]) => {
+      setOpen(nextOpen);
+      onOpenChange?.(nextOpen, eventDetails);
+    },
+    [onOpenChange, setOpen]
+  );
 
   const voiceSelectorContext = useMemo(
     () => ({ open, setOpen, setValue, value }),
@@ -91,7 +106,7 @@ export const VoiceSelector = ({
 
   return (
     <VoiceSelectorContext.Provider value={voiceSelectorContext}>
-      <Dialog onOpenChange={setOpen} open={open} {...props}>
+      <Dialog onOpenChange={handleOpenChange} open={open} {...props}>
         {children}
       </Dialog>
     </VoiceSelectorContext.Provider>

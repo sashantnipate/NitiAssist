@@ -41,7 +41,7 @@ function SidebarProvider({
   const toggleSidebar = React.useCallback(() => setOpen((value) => !value), [])
   const value = React.useMemo(
     () => ({
-      state: (open ? "expanded" : "collapsed") as const,
+      state: open ? ("expanded" as const) : ("collapsed" as const),
       open,
       setOpen,
       toggleSidebar,
