@@ -3,6 +3,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/features/side-layout/components/Sidebar";
+import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardLayout({
   children,
@@ -12,7 +13,10 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="relative">
+        <div className="absolute top-4 right-4 z-10">
+          <UserButton />
+        </div>
         {children}
       </SidebarInset>
     </SidebarProvider>
