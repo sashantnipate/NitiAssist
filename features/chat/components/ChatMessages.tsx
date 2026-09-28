@@ -1,5 +1,7 @@
 "use client"
 
+import { useRef, useState } from "react"
+
 import {
   ConversationContent,
   ConversationEmptyState,
@@ -12,7 +14,7 @@ import {
 } from "@/components/ai-elements/message"
 import { Button } from "@/components/ui/button"
 import type { Doc } from "@/convex/_generated/dataModel"
-import { Copy, Loader } from "lucide-react"
+import { Check, Copy, Loader } from "lucide-react"
 
 type ChatMessagesProps = {
   messages: Doc<"messages">[] | undefined
@@ -23,6 +25,9 @@ export function ChatMessages({
   messages,
   isLoading = false,
 }: ChatMessagesProps) {
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   if (isLoading || messages === undefined) {
     return <ConversationEmptyState description="Loading your conversation..." />
   }
@@ -62,6 +67,15 @@ export function ChatMessages({
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(content)
+                    setCopiedMessageId(message._id)
+
+                    if (copiedTimeoutRef.current) {
+                      clearTimeout(copiedTimeoutRef.current)
+                    }
+
+                    copiedTimeoutRef.current = setTimeout(() => {
+                      setCopiedMessageId(null)
+                    }, 2000)
                   } catch {
                     // Ignore clipboard failures when the browser blocks access.
                   }
@@ -70,7 +84,11 @@ export function ChatMessages({
                 title="Copy message"
                 variant="ghost"
               >
-                <Copy className="size-4" />
+                {copiedMessageId === message._id ? (
+                  <Check className="size-4" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
               </Button>
             </MessageActions>
           </Message>
