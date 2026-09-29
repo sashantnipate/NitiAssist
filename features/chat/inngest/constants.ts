@@ -1,3 +1,9 @@
+const CURRENT_DATE = new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "long",
+  timeZone: "Asia/Kolkata",
+}).format(new Date());
+
+
 export const CONVERSATION_AGENT_PROMPT = `
 You are the basic conversation assistant for a Financial Policy
 Discovery, Eligibility & Application Assistant.
@@ -22,6 +28,7 @@ the web research agent should handle it.
 
 
 export const WEB_AGENT_PROMPT = `
+Date : ${CURRENT_DATE}
 You are the Financial Policy Web Research Agent.
 
 Your job is to research current government policies and

@@ -45,7 +45,6 @@ const conversationAgent = createAgent({
   model,
 });
 
-
 const webAgent = createAgent({
   name: "Financial Policy Web Agent",
 
@@ -61,7 +60,6 @@ const webAgent = createAgent({
     firecrawlScrapeTool,
   ],
 });
-
 
 const routeToAgentTool = createTool({
   name: "route_to_agent",
@@ -106,7 +104,6 @@ const doneTool = createTool({
     return "done";
   },
 });
-
 
 const routingAgent = createRoutingAgent({
   name: "Financial Policy Routing Agent",
@@ -192,51 +189,48 @@ Think about the previous agent's response before choosing a tool.
   ],
 
   lifecycle: {
-  onRoute: ({ result, network }) => {
-    if (!network) {
-      throw new Error(
-        "Routing agent must run inside an AgentKit network."
-      );
-    }
-
-    const tool = result.toolCalls[0];
-
-    if (!tool) {
-      return;
-    }
-
-    const toolName = tool.tool.name;
-
-    // Routing agent says the task is complete.
-    if (toolName === "done") {
-      return;
-    }
-
-    // Routing agent selected an agent.
-    if (toolName === "route_to_agent") {
-      if (
-        typeof tool.content === "object" &&
-        tool.content !== null &&
-        "data" in tool.content &&
-        typeof tool.content.data === "string"
-      ) {
-        const selectedAgent = tool.content.data;
-
-        if (!network.agents.has(selectedAgent)) {
-          throw new Error(
-            `Routing agent selected unknown agent: ${selectedAgent}`
-          );
-        }
-
-        return [selectedAgent];
+    onRoute: ({ result, network }) => {
+      if (!network) {
+        throw new Error(
+          "Routing agent must run inside an AgentKit network."
+        );
       }
-    }
 
-    return;
+      const tool = result.toolCalls[0];
+
+      if (!tool) {
+        return;
+      }
+
+      const toolName = tool.tool.name;
+
+      if (toolName === "done") {
+        return;
+      }
+
+      if (toolName === "route_to_agent") {
+        if (
+          typeof tool.content === "object" &&
+          tool.content !== null &&
+          "data" in tool.content &&
+          typeof tool.content.data === "string"
+        ) {
+          const selectedAgent = tool.content.data;
+
+          if (!network.agents.has(selectedAgent)) {
+            throw new Error(
+              `Routing agent selected unknown agent: ${selectedAgent}`
+            );
+          }
+
+          return [selectedAgent];
+        }
+      }
+
+      return;
+    },
   },
-},
 });
-
 
 const network = createNetwork({
   name: "Financial Policy Assistant",
@@ -253,10 +247,16 @@ const network = createNetwork({
   maxIter: 5,
 });
 
-
 export const processChatMessage = inngest.createFunction(
   {
     id: "process-chat-message",
+
+    cancelOn: [
+      {
+        event: "chat/message.cancelled",
+        if: "async.data.assistantMessageId == event.data.assistantMessageId",
+      },
+    ],
 
     triggers: [
       {
@@ -308,7 +308,6 @@ export const processChatMessage = inngest.createFunction(
 
       console.log("Network completed.");
 
-
       const lastResult =
         result.state.results.at(-1);
 
@@ -334,7 +333,6 @@ export const processChatMessage = inngest.createFunction(
         "content" in lastTextMessage &&
         lastTextMessage.content
       ) {
-
         if (
           typeof lastTextMessage.content ===
           "string"
@@ -371,7 +369,6 @@ export const processChatMessage = inngest.createFunction(
         }
       }
 
-
       if (!finalAnswer.trim()) {
         finalAnswer =
           "No response generated.";
@@ -392,7 +389,6 @@ export const processChatMessage = inngest.createFunction(
           : "Unknown error";
     }
 
-
     await step.run(
       "update-convex-message",
       async () => {
@@ -412,3 +408,42 @@ export const processChatMessage = inngest.createFunction(
     };
   }
 );
+
+export const cancelChatMessage =
+  inngest.createFunction(
+    {
+      id: "cancel-chat-message",
+
+      triggers: [
+        {
+          event: "chat/message.cancelled",
+        },
+      ],
+    },
+
+    async ({ event, step }) => {
+      const {
+        assistantMessageId,
+      } = event.data as {
+        assistantMessageId: Id<"messages">;
+      };
+
+      await step.run(
+        "mark-message-cancelled",
+        async () => {
+          await convex.mutation(
+            api.messages.updateAssistantMessage,
+            {
+              assistantMessageId,
+              content: "Request cancelled.",
+              status: "cancelled",
+            }
+          );
+        }
+      );
+
+      return {
+        success: true,
+      };
+    }
+  );

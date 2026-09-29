@@ -11,13 +11,15 @@ import {
   useCreateMessageUser,
   useMessages,
   useRecentMessages,
-  useUpdateAssistantMessage,
 } from "@/hooks/useConversation"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChatMessages } from "./ChatMessages"
 import { ChatPrompt } from "./ChatPrompt"
-import { triggerChatAgent } from "../actions/process-message"
+import {
+  cancelChatAgent,
+  triggerChatAgent,
+} from "../actions/process-message"
 
 type ChatProps = {
   conversationId?: Id<"conversations"> | null
@@ -36,8 +38,32 @@ export function Chat({ conversationId = null }: ChatProps) {
   const recentMessages = useRecentMessages(conversationId)
   const createConversation = useCreateConversation()
   const createMessageUser = useCreateMessageUser()
-  const updateAssistantMessage = useUpdateAssistantMessage()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeAssistantMessageId, setActiveAssistantMessageId] =
+    useState<Id<"messages"> | null>(null)
+
+  const processingAssistantMessage = messages
+    ? [...messages]
+        .reverse()
+        .find(
+          (message) =>
+            message.role === "assistant" && message.status === "processing"
+        )
+    : undefined
+
+  useEffect(() => {
+    if (!messages) {
+      return
+    }
+
+    if (processingAssistantMessage) {
+      setActiveAssistantMessageId(processingAssistantMessage._id)
+      setIsSubmitting(true)
+    } else if (activeAssistantMessageId) {
+      setActiveAssistantMessageId(null)
+      setIsSubmitting(false)
+    }
+  }, [activeAssistantMessageId, messages, processingAssistantMessage])
 
   const handleSubmit = async (text: string) => {
     if (!userId || isSubmitting) {
@@ -59,6 +85,8 @@ export function Chat({ conversationId = null }: ChatProps) {
         conversationId: targetConversationId,
       })
 
+      setActiveAssistantMessageId(assistantMessageId)
+
       await triggerChatAgent({
         prompt: text,
         assistantMessageId,
@@ -69,14 +97,33 @@ export function Chat({ conversationId = null }: ChatProps) {
       if (!conversationId) {
         router.push(`/${targetConversationId}`)
       }
-    } finally {
+    } catch (error) {
       setIsSubmitting(false)
+      throw error
     }
+  }
+
+  const handleCancel = async () => {
+    const assistantMessageId =
+      activeAssistantMessageId ?? processingAssistantMessage?._id
+
+    if (!assistantMessageId) {
+      return
+    }
+
+    await cancelChatAgent({
+      assistantMessageId,
+    })
   }
 
   const hasConversation = conversationId !== null
   const prompt = (
-    <ChatPrompt disabled={!userId || isSubmitting} onSubmit={handleSubmit} />
+    <ChatPrompt
+      disabled={!userId}
+      isRunning={isSubmitting}
+      onCancel={handleCancel}
+      onSubmit={handleSubmit}
+    />
   )
 
   return (

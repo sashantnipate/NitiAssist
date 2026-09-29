@@ -31,3 +31,18 @@ export async function triggerChatAgent({
 
   return { success: true };
 }
+
+export async function cancelChatAgent({
+  assistantMessageId,
+}: {
+  assistantMessageId: Id<"messages">;
+}) {
+  await inngest.send({
+    name: "chat/message.cancelled",
+    data: {
+      assistantMessageId,
+    },
+  });
+
+  return { success: true };
+}
