@@ -133,7 +133,7 @@ export function Chat({ conversationId = null }: ChatProps) {
           <Conversation className="min-h-0 w-full flex-1 overflow-y-auto">
             <ChatMessages messages={messages} />
           </Conversation>
-          <div className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+          <div className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-background/95 px-4 pb-4 backdrop-blur sm:px-6">
             <div className="mx-auto w-full max-w-3xl">{prompt}</div>
           </div>
         </>

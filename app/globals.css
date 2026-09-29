@@ -175,3 +175,9 @@
 html{
   font-size: 110%;
 }
+
+/* Keep Streamdown's external-link confirmation panel at its intended size. */
+[data-streamdown="link-safety-modal"] > div {
+  width: calc(100% - 2rem);
+  max-width: 28rem;
+}
