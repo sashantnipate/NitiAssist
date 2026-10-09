@@ -3,6 +3,7 @@
 import {
   Conversation,
   ConversationEmptyState,
+  ConversationScrollButton,
 } from "@/components/ai-elements/conversation"
 import { useAuth } from "@clerk/nextjs"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -86,16 +87,16 @@ export function Chat({ conversationId = null }: ChatProps) {
 
       setActiveAssistantMessageId(assistantMessageId)
 
+      if (!conversationId) {
+        router.push(`/${targetConversationId}`)
+      }
+
       await triggerChatAgent({
         prompt: text,
         assistantMessageId,
         conversationId: targetConversationId,
         conversationContext: recentMessages ?? [],
       })
-
-      if (!conversationId) {
-        router.push(`/${targetConversationId}`)
-      }
     } catch (error) {
       setIsSubmitting(false)
       throw error
@@ -129,8 +130,9 @@ export function Chat({ conversationId = null }: ChatProps) {
     <main className="flex h-svh min-h-svh min-w-0 flex-1 flex-col items-center overflow-hidden">
       {hasConversation ? (
         <>
-          <Conversation className="min-h-0 w-full flex-1 overflow-y-auto">
+          <Conversation className="min-h-0 w-full flex-1">
             <ChatMessages messages={messages} />
+            <ConversationScrollButton />
           </Conversation>
           <div className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-background/95 px-4 pb-4 backdrop-blur sm:px-6">
             <div className="mx-auto w-full max-w-3xl">{prompt}</div>

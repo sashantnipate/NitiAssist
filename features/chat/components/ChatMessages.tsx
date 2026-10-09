@@ -37,7 +37,10 @@ export function ChatMessages({
   }
 
   return (
-    <ConversationContent className="mx-auto w-full max-w-3xl gap-4 px-4 pt-6 pb-10 sm:px-6">
+    <ConversationContent
+      className="mx-auto w-full max-w-3xl gap-4 px-4 pt-6 pb-10 sm:px-6"
+      scrollClassName="overflow-y-auto"
+    >
       {messages.map((message) => {
         const isProcessing =
           message.role === "assistant" && message.status === "processing"

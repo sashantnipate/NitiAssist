@@ -1,6 +1,6 @@
 "use client"
 
-import { SquarePen } from "lucide-react"
+import { LeafyGreen, SquarePen } from "lucide-react"
 
 import {
   Sidebar,
@@ -46,17 +46,35 @@ export function AppSidebar() {
             }
           }}
         >
-          <SidebarHeader>
-            <span
+          <SidebarHeader className="border-b-0">
+            <div
               className={
                 state === "collapsed"
-                  ? "sr-only"
-                  : "truncate text-sm font-semibold"
+                  ? "relative flex size-8 shrink-0 items-center justify-center"
+                  : "flex min-w-0 items-center gap-2"
               }
             >
-              NitiAssist
-            </span>
-            <SidebarTrigger />
+              <LeafyGreen
+                aria-hidden="true"
+                className={
+                  state === "collapsed"
+                    ? "size-6 shrink-0 transition-opacity group-hover/sidebar:opacity-0 group-focus-within/sidebar:opacity-0"
+                    : "size-6 shrink-0"
+                }
+              />
+              {state === "expanded" && (
+                <span className="truncate text-sm font-semibold">
+                  NitiAssist
+                </span>
+              )}
+            </div>
+            <SidebarTrigger
+              className={
+                state === "collapsed"
+                  ? "absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100"
+                  : undefined
+              }
+            />
           </SidebarHeader>
 
           <SidebarContent className="overflow-hidden">
