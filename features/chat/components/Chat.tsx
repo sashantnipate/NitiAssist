@@ -20,15 +20,14 @@ import {
   cancelChatAgent,
   triggerChatAgent,
 } from "../actions/process-message"
+import { createConversationTitle } from "../actions/create-title"
 
 type ChatProps = {
   conversationId?: Id<"conversations"> | null
 }
 
-function getConversationTitle(prompt: string) {
-  const title = prompt.trim().slice(0, 15)
-
-  return title || "New conversation"
+async function getConversationTitle(prompt: string) {
+  return createConversationTitle(prompt)
 }
 
 export function Chat({ conversationId = null }: ChatProps) {
@@ -77,7 +76,7 @@ export function Chat({ conversationId = null }: ChatProps) {
         conversationId ??
         (await createConversation({
           ownerId: userId,
-          title: getConversationTitle(text),
+          title: await getConversationTitle(text),
         }))
 
       const { assistantMessageId } = await createMessageUser({

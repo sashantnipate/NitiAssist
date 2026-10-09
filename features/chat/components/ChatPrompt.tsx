@@ -8,6 +8,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Square } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -91,7 +92,11 @@ export function ChatPrompt({
             type="button"
             title="Stop generating"
           >
-            <Square className="size-5" />
+            {isSubmitting || isCancelling ? (
+              <Spinner className="size-5" />
+            ) : (
+              <Square className="size-5" />
+            )}
           </Button>
         ) : (
           <PromptInputSubmit

@@ -59,8 +59,8 @@ export function AppSidebar() {
             <SidebarTrigger />
           </SidebarHeader>
 
-          <SidebarContent>
-            <SidebarMenu>
+          <SidebarContent className="overflow-hidden">
+            <SidebarMenu className="shrink-0">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   type="button"
@@ -76,10 +76,8 @@ export function AppSidebar() {
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Conversations />
-              </SidebarMenuItem>
             </SidebarMenu>
+            <Conversations />
           </SidebarContent>
         </Sidebar>
       </div>
