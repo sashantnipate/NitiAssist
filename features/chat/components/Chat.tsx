@@ -22,6 +22,9 @@ import {
   triggerChatAgent,
 } from "../actions/process-message"
 import { createConversationTitle } from "../actions/create-title"
+import type { FileUIPart } from "ai"
+import { useRegisterUploadedDocument } from "@/hooks/useDocuments"
+import { toast } from "sonner"
 
 type ChatProps = {
   conversationId?: Id<"conversations"> | null
@@ -38,7 +41,9 @@ export function Chat({ conversationId = null }: ChatProps) {
   const recentMessages = useRecentMessages(conversationId)
   const createConversation = useCreateConversation()
   const createMessageUser = useCreateMessageUser()
+  const registerUploadedDocument = useRegisterUploadedDocument()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [activeAssistantMessageId, setActiveAssistantMessageId] =
     useState<Id<"messages"> | null>(null)
 
@@ -65,24 +70,92 @@ export function Chat({ conversationId = null }: ChatProps) {
     }
   }, [activeAssistantMessageId, messages, processingAssistantMessage])
 
-  const handleSubmit = async (text: string) => {
+  const uploadImage = async (file: FileUIPart) => {
+    if (!file.url || !file.mediaType || !file.filename) {
+      throw new Error("The selected image could not be read.")
+    }
+    let image: Blob
+    try {
+      const response = await fetch(file.url)
+      if (!response.ok) throw new Error("The selected image could not be read.")
+      image = await response.blob()
+    } catch {
+      throw new Error("Could not read the selected image in your browser. Remove it and attach it again.")
+    }
+    if (image.size > 10 * 1024 * 1024) throw new Error("Images must be 10 MB or smaller.")
+    let signedResponse: Response
+    try {
+      signedResponse = await fetch("/api/uploads/r2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "upload", filename: file.filename, mimeType: file.mediaType, size: image.size }),
+      })
+    } catch {
+      throw new Error("Could not reach the app upload endpoint. Check that the app is running and you are signed in.")
+    }
+    let signed: { objectKey?: string; uploadUrl?: string; error?: string }
+    try {
+      signed = await signedResponse.json()
+    } catch {
+      throw new Error(`The app upload endpoint returned an invalid response (${signedResponse.status}).`)
+    }
+    if (!signedResponse.ok || !signed.objectKey || !signed.uploadUrl) throw new Error(signed.error ?? "Could not prepare image upload.")
+
+    let putResponse: Response
+    try {
+      putResponse = await fetch(signed.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.mediaType },
+        body: image,
+      })
+    } catch {
+      throw new Error("The upload to Cloudflare R2 was blocked. Check the bucket CORS policy allows PUT from this app's exact origin with the Content-Type header.")
+    }
+    if (!putResponse.ok) {
+      throw new Error(`Cloudflare R2 rejected the upload (HTTP ${putResponse.status}). Check the R2 token permissions and signed upload URL.`)
+    }
+
+    try {
+      return await registerUploadedDocument({
+        objectKey: signed.objectKey,
+        filename: file.filename,
+        mimeType: file.mediaType,
+        size: image.size,
+      })
+    } catch (error) {
+      await fetch("/api/uploads/r2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "delete", objectKey: signed.objectKey }),
+      })
+      throw error
+    }
+  }
+
+  const handleSubmit = async (text: string, files: FileUIPart[], selectedDocumentIds: Id<"documents">[]) => {
     if (!userId || isSubmitting) {
       return
     }
 
     setIsSubmitting(true)
+    setIsUploadingImages(files.length > 0)
 
     try {
+      const uploadedDocumentIds = await Promise.all(files.map(uploadImage))
+      setIsUploadingImages(false)
+      const documentIds = [...new Set([...selectedDocumentIds, ...uploadedDocumentIds])]
+      const messageText = text || (documentIds.length ? "Please analyze the attached image." : "")
       const targetConversationId =
         conversationId ??
         (await createConversation({
           ownerId: userId,
-          title: await getConversationTitle(text),
+          title: await getConversationTitle(messageText),
         }))
 
       const { assistantMessageId } = await createMessageUser({
-        content: text,
+        content: messageText,
         conversationId: targetConversationId,
+        documentIds,
       })
 
       setActiveAssistantMessageId(assistantMessageId)
@@ -92,13 +165,16 @@ export function Chat({ conversationId = null }: ChatProps) {
       }
 
       await triggerChatAgent({
-        prompt: text,
+        prompt: messageText,
         assistantMessageId,
         conversationId: targetConversationId,
+        documentIds,
         conversationContext: recentMessages ?? [],
       })
     } catch (error) {
       setIsSubmitting(false)
+      setIsUploadingImages(false)
+      toast.error(error instanceof Error ? error.message : "Could not submit your message.")
       throw error
     }
   }
@@ -120,6 +196,7 @@ export function Chat({ conversationId = null }: ChatProps) {
   const prompt = (
     <ChatPrompt
       disabled={!userId}
+      isUploading={isUploadingImages}
       isRunning={isSubmitting}
       onCancel={handleCancel}
       onSubmit={handleSubmit}

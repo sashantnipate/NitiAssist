@@ -9,6 +9,7 @@ The application combines a conversational chat interface with a multi-agent work
 - Provides a focused chat experience for financial-policy questions.
 - Uses Clerk for sign-in, sign-up, and request protection.
 - Stores conversations and messages in Convex.
+- Stores private, user-owned chat images in Cloudflare R2 and their reusable descriptions in Convex.
 - Maintains recent conversation context for follow-up questions.
 - Uses Inngest to run message processing asynchronously.
 - Uses Inngest Agent Kit to coordinate specialist agents.
@@ -146,6 +147,7 @@ The web-agent instructions prefer official government and other primary sources.
 - npm.
 - A Clerk application.
 - A Convex deployment connected to the project.
+- A private Cloudflare R2 bucket and bucket-scoped S3 API credentials for image storage.
 - An Inngest account, or the local Inngest Dev Server for development.
 - An OpenAI API key.
 - A Firecrawl API key for live web research.
@@ -179,11 +181,25 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 OPENAI_API_KEY=sk-...
 FIRECRAWL_API_KEY=fc-...
 
+# Private Cloudflare R2 image storage (server-side only)
+R2_ACCOUNT_ID=...
+R2_BUCKET_NAME=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_URL_EXPIRY_SECONDS=300
+
+# Same random secret configured in the Next.js and Convex environments
+INNGEST_CONVEX_SECRET=...
+
 # Optional local Inngest setting
 INNGEST_DEV=1
 ```
 
 `CLERK_FRONTEND_API_URL` must match the issuer/frontend API URL configured for the Convex Clerk provider. In Convex, configure the same Clerk issuer domain in the deployment's authentication settings.
+
+Create a private R2 bucket and an API token scoped to that bucket. Configure the bucket's CORS policy to allow `PUT` requests from your app's development and production origins with the `Content-Type` request header. Set the R2 variables in the Next.js runtime. Set `INNGEST_CONVEX_SECRET` to the same high-entropy value in both the Next.js/Inngest runtime and Convex deployment; it protects the service-only image description operations. Never expose R2 credentials or this service secret with a `NEXT_PUBLIC_` prefix.
+
+Chat accepts PNG, JPEG, WebP, and GIF images up to 10 MB each. The browser uploads directly to R2 through a short-lived signed URL. Convex stores the owner's ID, stable R2 object key, file metadata, and generated description. Signed read URLs are created when an image is displayed or analyzed; they expire and are not stored in Convex. Users can choose their saved images in other conversations or delete them from the library.
 
 ### 3. Start Convex
 
@@ -250,8 +266,9 @@ Static assets and Next.js internals are excluded from the Clerk matcher. Convex 
 4. Configure production environment variables in the hosting provider.
 5. Register the deployed `/api/inngest` endpoint with Inngest.
 6. Confirm that `OPENAI_API_KEY` and `FIRECRAWL_API_KEY` are available to the Inngest runtime.
-7. Build and validate the application with `npm run build`.
-8. Test sign-in, conversation creation, message processing, cancellation, and a web-research question in the deployed environment.
+7. Configure the private R2 bucket, scoped API credentials, CORS origins, and the R2 and shared service-secret environment variables.
+8. Build and validate the application with `npm run build`.
+9. Test sign-in, conversation creation, image upload and reuse, message processing, cancellation, and a web-research question in the deployed environment.
 
 ## Troubleshooting
 

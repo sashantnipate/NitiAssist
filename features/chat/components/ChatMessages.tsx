@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import {
   ConversationContent,
@@ -15,9 +15,21 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { Check, Copy, Loader } from "lucide-react"
+import Image from "next/image"
+
+type ChatMessage = Doc<"messages"> & {
+  documents?: Array<{
+    _id: string
+    objectKey: string
+    filename: string
+    mimeType: string
+    description?: string
+    status: "processing" | "ready" | "failed"
+  }>
+}
 
 type ChatMessagesProps = {
-  messages: Doc<"messages">[] | undefined
+  messages: ChatMessage[] | undefined
   isLoading?: boolean
 }
 
@@ -52,6 +64,11 @@ export function ChatMessages({
         return (
           <Message from={message.role} key={message._id}>
             <MessageContent>
+              {message.documents?.length ? (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {message.documents.map((document) => <StoredImage key={document._id} filename={document.filename} objectKey={document.objectKey} status={document.status} />)}
+                </div>
+              ) : null}
               {isProcessing ? (
                 <div aria-live="polite" className="flex items-center gap-2">
                   <MessageResponse>{content}</MessageResponse>
@@ -98,5 +115,37 @@ export function ChatMessages({
         )
       })}
     </ConversationContent>
+  )
+}
+
+function StoredImage({ filename, objectKey, status }: { filename: string; objectKey: string; status: "processing" | "ready" | "failed" }) {
+  const [src, setSrc] = useState("")
+  const [failed, setFailed] = useState(false)
+
+  const load = async () => {
+    const response = await fetch("/api/uploads/r2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operation: "read", objectKey }),
+    })
+    if (!response.ok) throw new Error("Image is unavailable")
+    const result = await response.json() as { readUrl: string }
+    setSrc(result.readUrl)
+    setFailed(false)
+  }
+
+  useEffect(() => {
+    void load().catch(() => setFailed(true))
+  }, [objectKey, status])
+
+  return (
+    <div className="overflow-hidden rounded-md border">
+      {src && !failed ? <Image alt={filename} className="size-28 object-cover" height={112} onError={() => { void load().catch(() => setFailed(true)) }} src={src} unoptimized width={112} /> : (
+        <div className="flex size-28 items-center justify-center bg-muted p-2 text-center text-xs text-muted-foreground">
+          {status === "processing" ? "Analyzing image…" : status === "failed" || failed ? "Image unavailable" : "Loading image…"}
+        </div>
+      )}
+      <p className="max-w-28 truncate px-2 py-1 text-xs">{filename}</p>
+    </div>
   )
 }

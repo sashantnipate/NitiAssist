@@ -5,7 +5,8 @@ import { verifyAuth } from "./verifyAuth";
 export const createMessageUser = mutation({
     args:{
         conversationId: v.id("conversations"),
-        content: v.string()
+        content: v.string(),
+        documentIds: v.optional(v.array(v.id("documents"))),
     },
     handler: async(ctx, args) => {
 
@@ -17,6 +18,18 @@ export const createMessageUser = mutation({
             throw new Error("Conversation not found");
         }
 
+        if (conversation.ownerId !== identity.subject) {
+            throw new Error("Unauthorized access");
+        }
+
+        const documentIds = [...new Set(args.documentIds ?? [])];
+        for (const documentId of documentIds) {
+            const document = await ctx.db.get(documentId);
+            if (!document || document.ownerId !== identity.subject) {
+                throw new Error("Image not found or unauthorized");
+            }
+        }
+
         
         await ctx.db.patch(args.conversationId, {
             updateAt: Date.now(),
@@ -26,6 +39,7 @@ export const createMessageUser = mutation({
             conversationId: args.conversationId,
             role: "user",
             content: args.content,
+            ...(documentIds.length ? { documentIds } : {}),
             status: "completed",
         });
 
@@ -92,13 +106,29 @@ export const getMessages = query({
       throw new Error("Unauthorized access");
     }
 
-    return await ctx.db
+    const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", (q) =>
         q.eq("conversationId", args.conversationId)
       )
       .order("asc")
       .collect();
+
+    return await Promise.all(messages.map(async (message) => ({
+      ...message,
+      documents: await Promise.all((message.documentIds ?? []).map(async (id) => {
+        const document = await ctx.db.get(id);
+        if (!document || document.ownerId !== identity.subject) return null;
+        return {
+          _id: document._id,
+          objectKey: document.objectKey,
+          filename: document.filename,
+          mimeType: document.mimeType,
+          description: document.description,
+          status: document.status,
+        };
+      })).then((items) => items.filter((item) => item !== null)),
+    })));
   },
 });
 
@@ -131,10 +161,22 @@ export const getRecentMessages = query({
       .order("desc")
       .collect();
 
-    return messages
+    const recent = messages
       .filter((message) => message.content.trim().length > 0)
       .slice(0, 10)
       .reverse()
-      .map(({ role, content }) => ({ role, content }));
+    return await Promise.all(recent.map(async ({ role, content, documentIds }) => {
+      const descriptions = await Promise.all((documentIds ?? []).map(async (id) => {
+        const document = await ctx.db.get(id);
+        return document?.ownerId === identity.subject && document.description
+          ? `${document.filename}: ${document.description}`
+          : null;
+      }));
+      const imageContext = descriptions.filter(Boolean).join("\n");
+      return {
+        role,
+        content: imageContext ? `${content}\n\nAttached image context:\n${imageContext}` : content,
+      };
+    }));
   },
 });

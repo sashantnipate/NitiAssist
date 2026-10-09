@@ -13,6 +13,7 @@ import { inngest } from "../../../inngest/client"
 
 import { firecrawlSearchTool, firecrawlScrapeTool } from "./tools"
 import { FINANCIAL_POLICY_ASSISTANT_PROMPT } from "./constants"
+import { getImageDescriptions } from "./analyze-images"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
@@ -81,6 +82,7 @@ export const processChatMessage = inngest.createFunction(
       assistantMessageId,
       conversationId,
       conversationContext = [],
+      documentIds = [],
     } = event.data as {
       prompt: string
       assistantMessageId: Id<"messages">
@@ -89,9 +91,8 @@ export const processChatMessage = inngest.createFunction(
         role: "user" | "assistant"
         content: string
       }>
+      documentIds?: Id<"documents">[]
     }
-
-    void conversationId
 
     const history = conversationContext
       .map(
@@ -109,7 +110,11 @@ export const processChatMessage = inngest.createFunction(
     let status: "completed" | "cancelled" = "completed"
 
     try {
-      const result = await network.run(promptWithContext)
+      const imageDescriptions = await getImageDescriptions(conversationId, documentIds, step)
+      const imageContext = imageDescriptions.length
+        ? `\n\nAttached image descriptions:\n${imageDescriptions.map(({ filename, description }) => `- ${filename}: ${description}`).join("\n")}`
+        : ""
+      const result = await network.run(`${promptWithContext}${imageContext}`)
 
       const messages = result.state.results
         .flatMap((networkResult) => networkResult.output)
