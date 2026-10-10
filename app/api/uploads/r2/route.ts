@@ -3,8 +3,14 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createReadUrl, createUploadUrl, deleteR2Object } from "@/lib/r2";
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+]);
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -20,11 +26,11 @@ export async function POST(request: Request) {
     };
 
     if (body.operation === "upload") {
-      if (!body.filename?.trim() || !body.mimeType || !body.size || !ALLOWED_IMAGE_TYPES.has(body.mimeType)) {
-        return NextResponse.json({ error: "Unsupported image type or size" }, { status: 400 });
+      if (!body.filename?.trim() || !body.mimeType || !body.size || !ALLOWED_DOCUMENT_TYPES.has(body.mimeType)) {
+        return NextResponse.json({ error: "Unsupported document type or size" }, { status: 400 });
       }
-      if (!Number.isInteger(body.size) || body.size <= 0 || body.size > MAX_IMAGE_SIZE) {
-        return NextResponse.json({ error: "Images must be 10 MB or smaller" }, { status: 413 });
+      if (!Number.isInteger(body.size) || body.size <= 0 || body.size > MAX_DOCUMENT_SIZE) {
+        return NextResponse.json({ error: "Documents must be 10 MB or smaller" }, { status: 413 });
       }
       const objectKey = `${userId}/${randomUUID()}`;
       const uploadUrl = await createUploadUrl(objectKey, body.mimeType, body.size);
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
 
     if (body.operation === "read" || body.operation === "delete") {
       if (!body.objectKey || !body.objectKey.startsWith(`${userId}/`)) {
-        return NextResponse.json({ error: "Image not found" }, { status: 404 });
+        return NextResponse.json({ error: "Document not found" }, { status: 404 });
       }
       if (body.operation === "delete") {
         await deleteR2Object(body.objectKey);

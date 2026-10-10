@@ -2,8 +2,20 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { verifyAuth } from "./verifyAuth";
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+]);
+
+function assertServiceSecret(secret: string) {
+  if (!process.env.INNGEST_CONVEX_SECRET || secret !== process.env.INNGEST_CONVEX_SECRET) {
+    throw new Error("Unauthorized service request");
+  }
+}
 
 export const registerUploaded = mutation({
   args: {
@@ -17,8 +29,8 @@ export const registerUploaded = mutation({
     if (!args.objectKey.startsWith(`${identity.subject}/`)) {
       throw new Error("Invalid object key");
     }
-    if (!ALLOWED_IMAGE_TYPES.includes(args.mimeType) || args.size <= 0 || args.size > MAX_IMAGE_SIZE) {
-      throw new Error("Unsupported image type or size");
+    if (!ALLOWED_DOCUMENT_TYPES.has(args.mimeType) || args.size <= 0 || args.size > MAX_DOCUMENT_SIZE) {
+      throw new Error("Unsupported document type or size");
     }
 
     const existing = await ctx.db
@@ -36,6 +48,20 @@ export const registerUploaded = mutation({
       status: "processing",
       createdAt: Date.now(),
     });
+  },
+});
+
+export const getForOwner = query({
+  args: {
+    ownerId: v.string(),
+    documentId: v.id("documents"),
+    serviceSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const document = await ctx.db.get(args.documentId);
+    if (!document || document.ownerId !== args.ownerId) throw new Error("Document not found.");
+    return document;
   },
 });
 
@@ -57,7 +83,7 @@ export const deleteMine = mutation({
     const identity = await verifyAuth(ctx);
     const document = await ctx.db.get(args.documentId);
     if (!document || document.ownerId !== identity.subject) {
-      throw new Error("Image not found or unauthorized");
+      throw new Error("Document not found or unauthorized");
     }
     await ctx.db.delete(args.documentId);
   },
@@ -90,21 +116,32 @@ export const getForAgent = query({
 export const saveDescription = mutation({
   args: {
     documentId: v.id("documents"),
+    ownerId: v.string(),
     description: v.string(),
+    analysisError: v.optional(v.string()),
     filename: v.optional(v.string()),
     status: v.union(v.literal("ready"), v.literal("failed")),
     serviceSecret: v.string(),
   },
   handler: async (ctx, args) => {
-    if (!process.env.INNGEST_CONVEX_SECRET || args.serviceSecret !== process.env.INNGEST_CONVEX_SECRET) {
-      throw new Error("Unauthorized service request");
-    }
+    assertServiceSecret(args.serviceSecret);
     const document = await ctx.db.get(args.documentId);
-    if (!document) return;
+    if (!document || document.ownerId !== args.ownerId) return;
     await ctx.db.patch(args.documentId, {
       description: args.description,
+      analysisError: args.analysisError ?? "",
       status: args.status,
       ...(args.filename ? { filename: args.filename } : {}),
     });
+  },
+});
+
+export const markFailedMine = mutation({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+    const document = await ctx.db.get(args.documentId);
+    if (!document || document.ownerId !== identity.subject) throw new Error("Document not found.");
+    await ctx.db.patch(args.documentId, { status: "failed" });
   },
 });

@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/features/side-layout/components/Sidebar";
 import { UserButton } from "@clerk/nextjs";
+import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 
 export default function DashboardLayout({
   children,
@@ -17,7 +18,7 @@ export default function DashboardLayout({
         <div className="absolute top-4 right-4 z-10">
           <UserButton />
         </div>
-        {children}
+        <OnboardingGate>{children}</OnboardingGate>
       </SidebarInset>
     </SidebarProvider>
   );

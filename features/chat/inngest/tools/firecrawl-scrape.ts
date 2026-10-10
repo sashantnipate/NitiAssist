@@ -44,6 +44,7 @@ export const firecrawlScrapeTool = createTool({
         {
           formats: ["markdown"],
           onlyMainContent: true,
+          timeout: 20_000,
         }
       );
 
@@ -52,6 +53,7 @@ export const firecrawlScrapeTool = createTool({
         url,
         title: page.metadata?.title ?? "",
         description: page.metadata?.description ?? "",
+        imageUrl: page.metadata?.ogImage ?? "",
         markdown: page.markdown ?? "",
       };
     } catch (error) {

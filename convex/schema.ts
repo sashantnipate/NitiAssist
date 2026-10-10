@@ -29,6 +29,7 @@ export default defineSchema({
     mimeType: v.string(),
     size: v.number(),
     description: v.optional(v.string()),
+    analysisError: v.optional(v.string()),
     status: v.union(
       v.literal("processing"),
       v.literal("ready"),
@@ -40,42 +41,40 @@ export default defineSchema({
     .index("by_owner_created", ["ownerId", "createdAt"])
     .index("by_object_key", ["objectKey"]),
 
-  userSchemes: defineTable({
+  userProfiles: defineTable({
     ownerId: v.string(),
-    schemeKey: v.string(),
-    title: v.string(),
-    department: v.optional(v.string()),
-    category: v.optional(v.string()),
-    description: v.optional(v.string()),
-    benefitDetails: v.optional(v.string()),
-    eligibility: v.optional(v.array(v.string())),
-    requiredDocuments: v.optional(v.array(v.string())),
-    applicationSteps: v.optional(v.array(v.string())),
-    deadlineText: v.optional(v.string()),
-    deadlineTimestamp: v.optional(v.number()),
-    applicationStatus: v.optional(
-      v.union(v.literal("open"), v.literal("closed"), v.literal("unknown"))
-    ),
-    applicationUrl: v.optional(v.string()),
-    sourceUrls: v.array(v.string()),
-    lastVerifiedAt: v.optional(v.number()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_owner", ["ownerId"])
-    .index("by_owner_scheme_key", ["ownerId", "schemeKey"]),
-
-  schemeDiscoveryJobs: defineTable({
-    ownerId: v.string(),
-    status: v.union(
+    onboardingCompletedAt: v.optional(v.number()),
+    state: v.optional(v.string()),
+    ageRange: v.optional(v.string()),
+    workType: v.optional(v.string()),
+    annualHouseholdIncome: v.optional(v.number()),
+    discoveryStatus: v.union(
+      v.literal("idle"),
       v.literal("queued"),
       v.literal("running"),
       v.literal("completed"),
       v.literal("failed")
     ),
-    startedAt: v.number(),
-    completedAt: v.optional(v.number()),
-    resultCount: v.optional(v.number()),
-    errorMessage: v.optional(v.string()),
-  }).index("by_owner_started", ["ownerId", "startedAt"]),
+    discoveryError: v.optional(v.string()),
+    lastDiscoveryAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["ownerId"]),
+
+  dashboardSchemes: defineTable({
+    ownerId: v.string(),
+    schemeKey: v.string(),
+    rank: v.number(),
+    title: v.string(),
+    imageUrl: v.optional(v.string()),
+    websiteUrl: v.string(),
+    description: v.string(),
+    deleteAfter: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_owner_scheme", ["ownerId", "schemeKey"])
+    .index("by_owner_rank", ["ownerId", "rank"])
+    .index("by_delete_after", ["deleteAfter"]),
 })

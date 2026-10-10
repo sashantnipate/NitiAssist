@@ -23,7 +23,8 @@ import {
 } from "../actions/process-message"
 import { createConversationTitle } from "../actions/request-title"
 import type { FileUIPart } from "ai"
-import { useRegisterUploadedDocument } from "@/hooks/useDocuments"
+import { useMarkDocumentFailed, useRegisterUploadedDocument } from "@/hooks/useDocuments"
+import { uploadDocumentToLibrary } from "@/features/documents/upload-document"
 import { toast } from "sonner"
 
 type ChatProps = {
@@ -38,6 +39,7 @@ export function Chat({ conversationId = null }: ChatProps) {
   const createConversation = useCreateConversation()
   const createMessageUser = useCreateMessageUser()
   const registerUploadedDocument = useRegisterUploadedDocument()
+  const markDocumentFailed = useMarkDocumentFailed()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [activeAssistantMessageId, setActiveAssistantMessageId] =
@@ -78,54 +80,8 @@ export function Chat({ conversationId = null }: ChatProps) {
     } catch {
       throw new Error("Could not read the selected image in your browser. Remove it and attach it again.")
     }
-    if (image.size > 10 * 1024 * 1024) throw new Error("Images must be 10 MB or smaller.")
-    let signedResponse: Response
-    try {
-      signedResponse = await fetch("/api/uploads/r2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation: "upload", filename: file.filename, mimeType: file.mediaType, size: image.size }),
-      })
-    } catch {
-      throw new Error("Could not reach the app upload endpoint. Check that the app is running and you are signed in.")
-    }
-    let signed: { objectKey?: string; uploadUrl?: string; error?: string }
-    try {
-      signed = await signedResponse.json()
-    } catch {
-      throw new Error(`The app upload endpoint returned an invalid response (${signedResponse.status}).`)
-    }
-    if (!signedResponse.ok || !signed.objectKey || !signed.uploadUrl) throw new Error(signed.error ?? "Could not prepare image upload.")
-
-    let putResponse: Response
-    try {
-      putResponse = await fetch(signed.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.mediaType },
-        body: image,
-      })
-    } catch {
-      throw new Error("The upload to Cloudflare R2 was blocked. Check the bucket CORS policy allows PUT from this app's exact origin with the Content-Type header.")
-    }
-    if (!putResponse.ok) {
-      throw new Error(`Cloudflare R2 rejected the upload (HTTP ${putResponse.status}). Check the R2 token permissions and signed upload URL.`)
-    }
-
-    try {
-      return await registerUploadedDocument({
-        objectKey: signed.objectKey,
-        filename: file.filename,
-        mimeType: file.mediaType,
-        size: image.size,
-      })
-    } catch (error) {
-      await fetch("/api/uploads/r2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation: "delete", objectKey: signed.objectKey }),
-      })
-      throw error
-    }
+    const imageFile = new File([image], file.filename, { type: file.mediaType })
+    return await uploadDocumentToLibrary(imageFile, registerUploadedDocument, markDocumentFailed)
   }
 
   const handleSubmit = async (text: string, files: FileUIPart[], selectedDocumentIds: Id<"documents">[]) => {

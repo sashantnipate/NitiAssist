@@ -15,9 +15,15 @@ import {
 import { Conversations } from "@/features/side-layout/components/Conversations"
 import { Logo } from "@/components/Logo"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function AppSidebar() {
   const { state, setOpen } = useSidebar()
+  const pathname = usePathname()
+
+  if (pathname === "/user-onboard" || pathname === "/user-onboarding") {
+    return null
+  }
 
   return (
     <>

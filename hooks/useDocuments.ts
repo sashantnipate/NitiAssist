@@ -4,3 +4,4 @@ import { api } from "../convex/_generated/api";
 export const useDocumentLibrary = () => useQuery(api.documents.listMine);
 export const useRegisterUploadedDocument = () => useMutation(api.documents.registerUploaded);
 export const useDeleteDocument = () => useMutation(api.documents.deleteMine);
+export const useMarkDocumentFailed = () => useMutation(api.documents.markFailedMine);

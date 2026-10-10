@@ -14,7 +14,7 @@ import {
 } from "@/components/ai-elements/message"
 import { Button } from "@/components/ui/button"
 import type { Doc } from "@/convex/_generated/dataModel"
-import { Check, Copy, Loader } from "lucide-react"
+import { Check, Copy, FileText, Loader } from "lucide-react"
 import Image from "next/image"
 
 type ChatMessage = Doc<"messages"> & {
@@ -66,7 +66,7 @@ export function ChatMessages({
             <MessageContent>
               {message.documents?.length ? (
                 <div className="mb-3 flex flex-wrap gap-2">
-                  {message.documents.map((document) => <StoredImage key={document._id} filename={document.filename} objectKey={document.objectKey} status={document.status} />)}
+                  {message.documents.map((document) => <StoredImage key={document._id} filename={document.filename} mimeType={document.mimeType} objectKey={document.objectKey} status={document.status} />)}
                 </div>
               ) : null}
               {isProcessing ? (
@@ -118,7 +118,7 @@ export function ChatMessages({
   )
 }
 
-function StoredImage({ filename, objectKey, status }: { filename: string; objectKey: string; status: "processing" | "ready" | "failed" }) {
+function StoredImage({ filename, mimeType, objectKey, status }: { filename: string; mimeType: string; objectKey: string; status: "processing" | "ready" | "failed" }) {
   const [src, setSrc] = useState("")
   const [failed, setFailed] = useState(false)
 
@@ -128,7 +128,7 @@ function StoredImage({ filename, objectKey, status }: { filename: string; object
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ operation: "read", objectKey }),
     })
-    if (!response.ok) throw new Error("Image is unavailable")
+    if (!response.ok) throw new Error("Document is unavailable")
     const result = await response.json() as { readUrl: string }
     setSrc(result.readUrl)
     setFailed(false)
@@ -138,11 +138,16 @@ function StoredImage({ filename, objectKey, status }: { filename: string; object
     void load().catch(() => setFailed(true))
   }, [objectKey, status])
 
+  const isImage = mimeType.startsWith("image/")
   return (
     <div className="overflow-hidden rounded-md border">
-      {src && !failed ? <Image alt={filename} className="size-28 object-cover" height={112} onError={() => { void load().catch(() => setFailed(true)) }} src={src} unoptimized width={112} /> : (
+      {src && !failed && isImage ? <Image alt={filename} className="size-28 object-cover" height={112} onError={() => { void load().catch(() => setFailed(true)) }} src={src} unoptimized width={112} /> : src && !failed ? (
+        <a className="flex size-28 flex-col items-center justify-center gap-2 bg-muted p-2 text-center text-xs text-primary" href={src} rel="noreferrer" target="_blank">
+          <FileText className="size-8" /> Open PDF
+        </a>
+      ) : (
         <div className="flex size-28 items-center justify-center bg-muted p-2 text-center text-xs text-muted-foreground">
-          {status === "processing" ? "Analyzing image…" : status === "failed" || failed ? "Image unavailable" : "Loading image…"}
+          {status === "processing" ? "Analyzing document…" : status === "failed" || failed ? "Document unavailable" : "Loading document…"}
         </div>
       )}
       <p className="max-w-28 truncate px-2 py-1 text-xs">{filename}</p>

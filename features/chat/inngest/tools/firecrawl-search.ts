@@ -49,6 +49,8 @@ Prefer official government and primary sources.
         query,
         {
           limit,
+          timeout: 20_000,
+          country: "IN",
         }
       );
 
