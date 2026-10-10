@@ -113,6 +113,32 @@ export const getForAgent = query({
   },
 });
 
+export const listForAgent = query({
+  args: {
+    conversationId: v.id("conversations"),
+    serviceSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const documents = await ctx.db
+      .query("documents")
+      .withIndex("by_owner_created", (q) => q.eq("ownerId", conversation.ownerId))
+      .order("desc")
+      .take(20);
+
+    return documents.map(({ _id, filename, description, mimeType, status }) => ({
+      id: _id,
+      filename,
+      description: description ?? "",
+      mimeType,
+      status,
+    }));
+  },
+});
+
 export const saveDescription = mutation({
   args: {
     documentId: v.id("documents"),

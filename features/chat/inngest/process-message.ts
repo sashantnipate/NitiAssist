@@ -10,48 +10,45 @@ import type { Id } from "../../../convex/_generated/dataModel"
 
 import { inngest } from "../../../inngest/client"
 
-import { firecrawlSearchTool, firecrawlScrapeTool } from "./tools"
+import { createGetUserDocumentContextTool, firecrawlSearchTool, firecrawlScrapeTool } from "./tools"
 import { FINANCIAL_POLICY_ASSISTANT_PROMPT } from "./constants"
 import { getImageDescriptions } from "./analyze-images"
 import { model } from "./model"
+import { getConvexServiceSecret } from "./convex-secret"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
-const financialPolicyAssistantAgent = createAgent({
-  name: "Financial Policy Assistant Agent",
+function createFinancialPolicyAssistantNetwork(conversationId: Id<"conversations">) {
+  const financialPolicyAssistantAgent = createAgent({
+    name: "Financial Policy Assistant Agent",
+    description:
+      "Extracts user details, researches current government policies and schemes, evaluates eligibility with rule-level citations, estimates benefits, and guides through application steps.",
+    system: FINANCIAL_POLICY_ASSISTANT_PROMPT,
+    model,
+    tools: [
+      createGetUserDocumentContextTool({
+        convex,
+        conversationId,
+        serviceSecret: getConvexServiceSecret(),
+      }),
+      firecrawlSearchTool,
+      firecrawlScrapeTool,
+    ],
+  })
 
-  description:
-    "Extracts user details, researches current government policies and schemes, evaluates eligibility with rule-level citations, estimates benefits, and guides through application steps.",
-
-  system: FINANCIAL_POLICY_ASSISTANT_PROMPT,
-
-  model,
-
-  tools: [firecrawlSearchTool, firecrawlScrapeTool],
-})
-
-// Single-agent network orchestrator with custom router to bypass default select_agent schema creation
-const network = createNetwork({
-  name: "Financial Policy Assistant Network",
-
-  agents: [financialPolicyAssistantAgent],
-
-  defaultModel: model,
-
-  router: ({ callCount, lastResult }) => {
-    if (callCount >= 5) {
-      return
-    }
-
-    if (callCount > 0 && (!lastResult?.toolCalls || lastResult.toolCalls.length === 0)) {
-      return
-    }
-
-    return financialPolicyAssistantAgent
-  },
-
-  maxIter: 5,
-})
+  // Single-agent network orchestrator with custom router to bypass default select_agent schema creation.
+  return createNetwork({
+    name: "Financial Policy Assistant Network",
+    agents: [financialPolicyAssistantAgent],
+    defaultModel: model,
+    router: ({ callCount, lastResult }) => {
+      if (callCount >= 5) return
+      if (callCount > 0 && (!lastResult?.toolCalls || lastResult.toolCalls.length === 0)) return
+      return financialPolicyAssistantAgent
+    },
+    maxIter: 5,
+  })
+}
 
 export const processChatMessage = inngest.createFunction(
   {
@@ -109,6 +106,7 @@ export const processChatMessage = inngest.createFunction(
       const imageContext = imageDescriptions.length
         ? `\n\nAttached image descriptions:\n${imageDescriptions.map(({ filename, description }) => `- ${filename}: ${description}`).join("\n")}`
         : ""
+      const network = createFinancialPolicyAssistantNetwork(conversationId)
       const result = await network.run(`${promptWithContext}${imageContext}`)
 
       const messages = result.state.results

@@ -23,6 +23,26 @@ type LibraryProps = {
 };
 
 export function Library({ showUploadButton = false }: LibraryProps) {
+  return (
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-4 sm:px-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Your documents</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Images and PDFs are stored privately and named from their contents.</p>
+        </div>
+        {showUploadButton ? (
+          <>
+            <LibraryUploadButton />
+          </>
+        ) : null}
+      </header>
+      {showUploadButton ? <p className="-mt-4 text-xs text-muted-foreground">JPG, PNG, WEBP, GIF, or PDF. Up to 10 MB each.</p> : null}
+      <LibraryGallery />
+    </section>
+  );
+}
+
+export function LibraryUploadButton() {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const register = useRegisterUploadedDocument();
@@ -55,31 +75,19 @@ export function Library({ showUploadButton = false }: LibraryProps) {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-4 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Your documents</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Images and PDFs are stored privately and named from their contents.</p>
-        </div>
-        {showUploadButton ? (
-          <>
-            <input
-              ref={inputRef}
-              accept={[...ACCEPTED_DOCUMENT_TYPES].join(",")}
-              className="sr-only"
-              multiple
-              onChange={(event) => void handleFiles(event.target.files)}
-              type="file"
-            />
-            <Button disabled={uploading} onClick={() => inputRef.current?.click()} type="button">
-              <Upload /> {uploading ? "Uploading…" : "Upload documents"}
-            </Button>
-          </>
-        ) : null}
-      </header>
-      {showUploadButton ? <p className="-mt-4 text-xs text-muted-foreground">JPG, PNG, WEBP, GIF, or PDF. Up to 10 MB each.</p> : null}
-      <LibraryGallery />
-    </section>
+    <>
+      <input
+        ref={inputRef}
+        accept={[...ACCEPTED_DOCUMENT_TYPES].join(",")}
+        className="sr-only"
+        multiple
+        onChange={(event) => void handleFiles(event.target.files)}
+        type="file"
+      />
+      <Button disabled={uploading} onClick={() => inputRef.current?.click()} type="button">
+        <Upload /> {uploading ? "Uploading…" : "Upload documents"}
+      </Button>
+    </>
   );
 }
 

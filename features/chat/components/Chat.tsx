@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChatMessages } from "./ChatMessages"
 import { ChatPrompt } from "./ChatPrompt"
+import { Logo } from "@/components/Logo"
 import {
   cancelChatAgent,
   triggerChatAgent,
@@ -41,7 +42,7 @@ export function Chat({ conversationId = null }: ChatProps) {
   const registerUploadedDocument = useRegisterUploadedDocument()
   const markDocumentFailed = useMarkDocumentFailed()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [activeAssistantMessageId, setActiveAssistantMessageId] =
     useState<Id<"messages"> | null>(null)
 
@@ -68,17 +69,17 @@ export function Chat({ conversationId = null }: ChatProps) {
     }
   }, [activeAssistantMessageId, messages, processingAssistantMessage])
 
-  const uploadImage = async (file: FileUIPart) => {
+  const uploadFile = async (file: FileUIPart) => {
     if (!file.url || !file.mediaType || !file.filename) {
-      throw new Error("The selected image could not be read.")
+      throw new Error("The selected file could not be read.")
     }
     let image: Blob
     try {
       const response = await fetch(file.url)
-      if (!response.ok) throw new Error("The selected image could not be read.")
+      if (!response.ok) throw new Error("The selected file could not be read.")
       image = await response.blob()
     } catch {
-      throw new Error("Could not read the selected image in your browser. Remove it and attach it again.")
+      throw new Error("Could not read the selected file in your browser. Remove it and attach it again.")
     }
     const imageFile = new File([image], file.filename, { type: file.mediaType })
     return await uploadDocumentToLibrary(imageFile, registerUploadedDocument, markDocumentFailed)
@@ -90,13 +91,13 @@ export function Chat({ conversationId = null }: ChatProps) {
     }
 
     setIsSubmitting(true)
-    setIsUploadingImages(files.length > 0)
+    setIsUploadingFiles(files.length > 0)
 
     try {
-      const uploadedDocumentIds = await Promise.all(files.map(uploadImage))
-      setIsUploadingImages(false)
+      const uploadedDocumentIds = await Promise.all(files.map(uploadFile))
+      setIsUploadingFiles(false)
       const documentIds = [...new Set([...selectedDocumentIds, ...uploadedDocumentIds])]
-      const messageText = text || (documentIds.length ? "Please analyze the attached image." : "")
+      const messageText = text || (documentIds.length ? "Please analyze the attached document." : "")
       const targetConversationId = conversationId ?? await createConversation({
         ownerId: userId,
         title: messageText.trim().replace(/\s+/g, " ").slice(0, 60) || "New conversation",
@@ -127,7 +128,7 @@ export function Chat({ conversationId = null }: ChatProps) {
       })
     } catch (error) {
       setIsSubmitting(false)
-      setIsUploadingImages(false)
+      setIsUploadingFiles(false)
       toast.error(error instanceof Error ? error.message : "Could not submit your message.")
       throw error
     }
@@ -150,7 +151,7 @@ export function Chat({ conversationId = null }: ChatProps) {
   const prompt = (
     <ChatPrompt
       disabled={!userId}
-      isUploading={isUploadingImages}
+      isUploading={isUploadingFiles}
       isRunning={isSubmitting}
       onCancel={handleCancel}
       onSubmit={handleSubmit}
@@ -171,6 +172,7 @@ export function Chat({ conversationId = null }: ChatProps) {
         </>
       ) : (
         <div className="flex w-full flex-1 flex-col items-center justify-center gap-6 px-4">
+          {!isSubmitting ? <Logo className="h-20 w-auto" priority /> : null}
           <ConversationEmptyState
             className="size-auto p-0"
             description="Ask a question to start a new conversation."

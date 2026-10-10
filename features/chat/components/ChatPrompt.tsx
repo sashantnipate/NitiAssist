@@ -14,11 +14,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useDocumentLibrary } from "@/hooks/useDocuments"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { ImagePlus, Paperclip, Square, X } from "lucide-react"
+import { FileText, ImagePlus, Paperclip, Square, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { FileUIPart } from "ai"
 import { toast } from "sonner"
-import { LibraryGallery } from "@/features/chat/components/Library"
+import { LibraryGallery, LibraryUploadButton } from "@/features/chat/components/Library"
+import { ACCEPTED_DOCUMENT_TYPES } from "@/features/documents/upload-document"
 
 type ChatPromptProps = {
   disabled?: boolean
@@ -28,14 +29,21 @@ type ChatPromptProps = {
   onSubmit: (text: string, files: FileUIPart[], documentIds: Id<"documents">[]) => void | Promise<void>
 }
 
-function PendingImagePreviews() {
+function PendingFilePreviews() {
   const attachments = usePromptInputAttachments()
   if (!attachments.files.length) return null
   return (
     <div className="flex w-full flex-wrap justify-start gap-2">
       {attachments.files.map((file) => (
         <div className="relative size-16 overflow-hidden rounded-md border" key={file.id}>
-          {file.url ? <img alt={file.filename ?? "Selected image"} className="size-full object-cover" src={file.url} /> : null}
+          {file.mediaType?.startsWith("image/") && file.url ? (
+            <img alt={file.filename ?? "Selected image"} className="size-full object-cover" src={file.url} />
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-1 bg-muted p-1 text-center">
+              <FileText className="size-6 text-primary" />
+              <span className="w-full truncate text-[10px]">{file.filename ?? "Document"}</span>
+            </div>
+          )}
           <button aria-label={`Remove ${file.filename ?? "image"}`} className="absolute top-0.5 right-0.5 rounded-full bg-background/90 p-1" onClick={() => attachments.remove(file.id)} type="button">
             <X className="size-3" />
           </button>
@@ -62,7 +70,7 @@ function PromptAttachmentsHeader({
 
   return (
     <PromptInputHeader className="w-full flex-col items-start justify-start px-3 pt-3">
-      <PendingImagePreviews />
+      <PendingFilePreviews />
       {selectedDocumentIds.length > 0 ? (
         <div className="flex w-full flex-wrap justify-start gap-2">
           {selectedDocumentIds.map((id) => {
@@ -140,7 +148,7 @@ export function ChatPrompt({
     <PromptInput
       aria-label="Send a message"
       className="w-full text-base"
-      accept="image/jpeg,image/png,image/webp,image/gif"
+      accept={[...ACCEPTED_DOCUMENT_TYPES].join(",")}
       maxFiles={4}
       maxFileSize={10 * 1024 * 1024}
       multiple
@@ -162,12 +170,12 @@ export function ChatPrompt({
       <PromptInputFooter className="justify-between">
         <div className="flex items-center gap-1">
           <PromptFileButton />
-          <Button aria-label="Choose saved images" onClick={() => setIsLibraryOpen(true)} size="icon" title="Choose saved images" type="button" variant="ghost">
+          <Button aria-label="Choose reference documents" onClick={() => setIsLibraryOpen(true)} size="icon" title="Choose reference documents" type="button" variant="ghost">
             <ImagePlus className="size-4" />
           </Button>
         </div>
         <span aria-live="polite" className="mr-auto px-2 text-xs text-muted-foreground">
-          {isUploading ? "Uploading images…" : isBusy ? "Assistant is working…" : ""}
+          {isUploading ? "Uploading documents…" : isBusy ? "Assistant is working…" : ""}
         </span>
         {isBusy ? (
           <Button
@@ -194,7 +202,10 @@ export function ChatPrompt({
       </PromptInputFooter>
       <Dialog onOpenChange={setIsLibraryOpen} open={isLibraryOpen}>
         <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader><DialogTitle>Your saved images</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Reference documents</DialogTitle></DialogHeader>
+          <div className="flex justify-end">
+            <LibraryUploadButton />
+          </div>
           <LibraryGallery
             onDeleteDocument={(id) => setSelectedDocumentIds((ids) => ids.filter((item) => item !== id))}
             onToggleDocument={(id) => setSelectedDocumentIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id])}
@@ -209,7 +220,7 @@ export function ChatPrompt({
 
 function PromptFileButton() {
   const attachments = usePromptInputAttachments()
-  return <Button aria-label="Attach images" onClick={attachments.openFileDialog} size="icon" title="Attach images" type="button" variant="ghost"><Paperclip className="size-4" /></Button>
+  return <Button aria-label="Attach images or PDF" onClick={attachments.openFileDialog} size="icon" title="Attach images or PDF" type="button" variant="ghost"><Paperclip className="size-4" /></Button>
 }
 
 function PromptSubmitControl({ hasPromptText, disabled }: { hasPromptText: boolean; disabled: boolean }) {
