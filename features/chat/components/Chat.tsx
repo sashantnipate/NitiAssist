@@ -21,17 +21,13 @@ import {
   cancelChatAgent,
   triggerChatAgent,
 } from "../actions/process-message"
-import { createConversationTitle } from "../actions/create-title"
+import { createConversationTitle } from "../actions/request-title"
 import type { FileUIPart } from "ai"
 import { useRegisterUploadedDocument } from "@/hooks/useDocuments"
 import { toast } from "sonner"
 
 type ChatProps = {
   conversationId?: Id<"conversations"> | null
-}
-
-async function getConversationTitle(prompt: string) {
-  return createConversationTitle(prompt)
 }
 
 export function Chat({ conversationId = null }: ChatProps) {
@@ -145,12 +141,14 @@ export function Chat({ conversationId = null }: ChatProps) {
       setIsUploadingImages(false)
       const documentIds = [...new Set([...selectedDocumentIds, ...uploadedDocumentIds])]
       const messageText = text || (documentIds.length ? "Please analyze the attached image." : "")
-      const targetConversationId =
-        conversationId ??
-        (await createConversation({
-          ownerId: userId,
-          title: await getConversationTitle(messageText),
-        }))
+      const targetConversationId = conversationId ?? await createConversation({
+        ownerId: userId,
+        title: messageText.trim().replace(/\s+/g, " ").slice(0, 60) || "New conversation",
+      })
+
+      if (!conversationId) {
+        await createConversationTitle(messageText, targetConversationId)
+      }
 
       const { assistantMessageId } = await createMessageUser({
         content: messageText,

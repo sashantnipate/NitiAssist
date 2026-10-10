@@ -1,7 +1,6 @@
 import {
   createAgent,
   createNetwork,
-  openai,
 } from "@inngest/agent-kit"
 
 import { ConvexHttpClient } from "convex/browser"
@@ -14,13 +13,9 @@ import { inngest } from "../../../inngest/client"
 import { firecrawlSearchTool, firecrawlScrapeTool } from "./tools"
 import { FINANCIAL_POLICY_ASSISTANT_PROMPT } from "./constants"
 import { getImageDescriptions } from "./analyze-images"
+import { model } from "./model"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
-
-const model = openai({
-  model: "gpt-4o-mini",
-  apiKey: process.env.NITIASSIST_OPENAI_API_KEY,
-})
 
 const financialPolicyAssistantAgent = createAgent({
   name: "Financial Policy Assistant Agent",
