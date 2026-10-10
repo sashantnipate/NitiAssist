@@ -1,7 +1,6 @@
 "use client"
 
-import { LeafyGreen, SquarePen, Landmark } from "lucide-react"
-import { LeafyGreen, LibraryBig, SquarePen } from "lucide-react"
+import { Landmark, LeafyGreen, LibraryBig, SquarePen } from "lucide-react"
 
 import {
   Sidebar,
@@ -106,6 +105,11 @@ export function AppSidebar() {
                     className={state === "collapsed" ? "sr-only" : undefined}
                   >
                     Schemes
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   type="button"
                   tooltip="Library"
                   aria-label="Library"
