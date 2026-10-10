@@ -1,6 +1,6 @@
 "use client"
 
-import { LeafyGreen, SquarePen } from "lucide-react"
+import { LeafyGreen, SquarePen, Landmark } from "lucide-react"
 
 import {
   Sidebar,
@@ -58,7 +58,7 @@ export function AppSidebar() {
                 aria-hidden="true"
                 className={
                   state === "collapsed"
-                    ? "size-6 shrink-0 transition-opacity group-hover/sidebar:opacity-0 group-focus-within/sidebar:opacity-0"
+                    ? "size-6 shrink-0 transition-opacity group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0"
                     : "size-6 shrink-0"
                 }
               />
@@ -71,7 +71,7 @@ export function AppSidebar() {
             <SidebarTrigger
               className={
                 state === "collapsed"
-                  ? "absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100"
+                  ? "absolute top-3 left-3 z-10 opacity-0 transition-opacity group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100"
                   : undefined
               }
             />
@@ -91,6 +91,20 @@ export function AppSidebar() {
                     className={state === "collapsed" ? "sr-only" : undefined}
                   >
                     New chat
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Schemes"
+                  aria-label="Schemes"
+                  render={<Link href="/dashboard" />}
+                >
+                  <Landmark />
+                  <span
+                    className={state === "collapsed" ? "sr-only" : undefined}
+                  >
+                    Schemes
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
