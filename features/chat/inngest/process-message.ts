@@ -19,7 +19,7 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 const model = openai({
   model: "gpt-4o-mini",
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.NITIASSIST_OPENAI_API_KEY,
 })
 
 const financialPolicyAssistantAgent = createAgent({

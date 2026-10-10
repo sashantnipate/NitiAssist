@@ -5,7 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { createReadUrl } from "../../../lib/r2";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.NITIASSIST_OPENAI_API_KEY });
 
 export async function getImageDescriptions(
   conversationId: Id<"conversations">,
