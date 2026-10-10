@@ -20,11 +20,15 @@ import type { FileUIPart } from "ai"
 import { toast } from "sonner"
 import { LibraryGallery, LibraryUploadButton } from "@/features/chat/components/Library"
 import { ACCEPTED_DOCUMENT_TYPES } from "@/features/documents/upload-document"
+import { PromptQuestions, type PromptQuestion } from "@/features/chat/components/PromptQuestions"
+
+const EMPTY_PROMPT_QUESTIONS: PromptQuestion[] = []
 
 type ChatPromptProps = {
   disabled?: boolean
   isRunning?: boolean
   isUploading?: boolean
+  questions?: PromptQuestion[]
   onCancel?: () => void | Promise<void>
   onSubmit: (text: string, files: FileUIPart[], documentIds: Id<"documents">[]) => void | Promise<void>
 }
@@ -94,6 +98,7 @@ export function ChatPrompt({
   disabled = false,
   isRunning = false,
   isUploading = false,
+  questions = EMPTY_PROMPT_QUESTIONS,
   onCancel,
   onSubmit,
 }: ChatPromptProps) {
@@ -159,6 +164,18 @@ export function ChatPrompt({
         library={library}
         onRemoveSelected={(id) => setSelectedDocumentIds((ids) => ids.filter((item) => item !== id))}
         selectedDocumentIds={selectedDocumentIds}
+      />
+      <PromptQuestions
+        disabled={disabled}
+        onUseAnswers={(answers) => {
+          const answerText = answers
+            .map(({ question, answer }) => `- ${question}: ${answer}`)
+            .join("\n")
+          setValue((current) =>
+            [current.trim(), answerText].filter(Boolean).join("\n\n")
+          )
+        }}
+        questions={questions}
       />
       <PromptInputBody>
         <PromptInputTextarea

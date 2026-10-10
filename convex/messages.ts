@@ -63,7 +63,13 @@ export const updateAssistantMessage = mutation({
     args:{
         assistantMessageId: v.id("messages"),
         content: v.string(),
-        status: v.union(v.literal("processing"), v.literal("completed"), v.literal("cancelled"))
+        status: v.union(v.literal("processing"), v.literal("completed"), v.literal("cancelled")),
+        questions: v.optional(v.array(v.object({
+            id: v.string(),
+            type: v.union(v.literal("yes-no"), v.literal("single-choice"), v.literal("text")),
+            question: v.string(),
+            options: v.optional(v.array(v.string())),
+        }))),
     },
     handler: async(ctx, args) => {
 
@@ -80,7 +86,8 @@ export const updateAssistantMessage = mutation({
         
         await ctx.db.patch(args.assistantMessageId, {
             content: args.content,
-            status: args.status
+            status: args.status,
+            questions: args.questions,
         });
     }
 })

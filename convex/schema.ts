@@ -13,6 +13,12 @@ export default defineSchema({
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
     documentIds: v.optional(v.array(v.id("documents"))),
+    questions: v.optional(v.array(v.object({
+      id: v.string(),
+      type: v.union(v.literal("yes-no"), v.literal("single-choice"), v.literal("text")),
+      question: v.string(),
+      options: v.optional(v.array(v.string())),
+    }))),
     status: v.optional(
       v.union(
         v.literal("processing"),

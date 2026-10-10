@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChatMessages } from "./ChatMessages"
 import { ChatPrompt } from "./ChatPrompt"
+import { getLegacyClarifyingQuestions } from "../clarifying-questions"
 import { Logo } from "@/components/Logo"
 import {
   cancelChatAgent,
@@ -54,6 +55,16 @@ export function Chat({ conversationId = null }: ChatProps) {
             message.role === "assistant" && message.status === "processing"
         )
     : undefined
+
+  const latestMessage = messages?.[messages.length - 1]
+  const pendingQuestions =
+    latestMessage?.role === "assistant"
+      ? latestMessage.questions?.length
+        ? latestMessage.questions
+        : latestMessage.status === "completed"
+          ? getLegacyClarifyingQuestions(latestMessage.content)
+          : []
+      : []
 
   useEffect(() => {
     if (!messages) {
@@ -153,6 +164,7 @@ export function Chat({ conversationId = null }: ChatProps) {
       disabled={!userId}
       isUploading={isUploadingFiles}
       isRunning={isSubmitting}
+      questions={pendingQuestions}
       onCancel={handleCancel}
       onSubmit={handleSubmit}
     />

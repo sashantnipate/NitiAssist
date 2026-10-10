@@ -1,7 +1,9 @@
 import {
   createAgent,
   createNetwork,
+  createTool,
 } from "@inngest/agent-kit"
+import { z } from "zod"
 
 import { ConvexHttpClient } from "convex/browser"
 
@@ -15,10 +17,61 @@ import { FINANCIAL_POLICY_ASSISTANT_PROMPT } from "./constants"
 import { getImageDescriptions } from "./analyze-images"
 import { model } from "./model"
 import { getConvexServiceSecret } from "./convex-secret"
+import { getLegacyClarifyingQuestions } from "../clarifying-questions"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
-function createFinancialPolicyAssistantNetwork(conversationId: Id<"conversations">) {
+type ClarifyingQuestion = {
+  id: string
+  type: "yes-no" | "single-choice" | "text"
+  question: string
+  options?: string[]
+}
+
+function createAskClarifyingQuestionsTool(
+  onQuestions: (questions: ClarifyingQuestion[]) => void | Promise<void>
+) {
+  const tool = createTool({
+    name: "ask_clarifying_questions",
+    description:
+      "Show up to three focused questions in the chat composer when essential applicant details are missing. Use this instead of asking those questions in the assistant message text.",
+    parameters: z.object({
+      questions: z.array(z.object({
+        id: z.string(),
+        type: z.enum(["yes-no", "single-choice", "text"]),
+        question: z.string(),
+        options: z.array(z.string()).optional(),
+      })),
+    }),
+    handler: async ({ questions }) => {
+      const validQuestions = questions.flatMap((item, index): ClarifyingQuestion[] => {
+        const question = item.question.trim()
+        const options = item.options?.filter((option) => option.trim()).map((option) => option.trim())
+        if (!question || (item.type === "single-choice" && (!options || options.length < 2))) {
+          return []
+        }
+
+        return [{
+          id: item.id.trim() || `clarification-${index + 1}`,
+          type: item.type,
+          question,
+          ...(item.type === "single-choice" ? { options: options?.slice(0, 6) } : {}),
+        }]
+      }).slice(0, 3)
+      if (validQuestions.length > 0) await onQuestions(validQuestions)
+      return "The questions are displayed above the chat input. Do not repeat them in your reply."
+    },
+  })
+  tool.strict = false
+  return tool
+}
+
+function createFinancialPolicyAssistantNetwork(
+  conversationId: Id<"conversations">,
+  onQuestions: (questions: ClarifyingQuestion[]) => void | Promise<void>
+) {
+  let clarificationRequested = false
+
   const financialPolicyAssistantAgent = createAgent({
     name: "Financial Policy Assistant Agent",
     description:
@@ -31,6 +84,10 @@ function createFinancialPolicyAssistantNetwork(conversationId: Id<"conversations
         conversationId,
         serviceSecret: getConvexServiceSecret(),
       }),
+      createAskClarifyingQuestionsTool((questions) => {
+        clarificationRequested = true
+        return onQuestions(questions)
+      }),
       firecrawlSearchTool,
       firecrawlScrapeTool,
     ],
@@ -42,6 +99,7 @@ function createFinancialPolicyAssistantNetwork(conversationId: Id<"conversations
     agents: [financialPolicyAssistantAgent],
     defaultModel: model,
     router: ({ callCount, lastResult }) => {
+      if (clarificationRequested) return
       if (callCount >= 5) return
       if (callCount > 0 && (!lastResult?.toolCalls || lastResult.toolCalls.length === 0)) return
       return financialPolicyAssistantAgent
@@ -98,6 +156,7 @@ export const processChatMessage = inngest.createFunction(
       : `Current user request:\n${prompt}`
 
     let finalAnswer = ""
+    let questions: ClarifyingQuestion[] = []
 
     let status: "completed" | "cancelled" = "completed"
 
@@ -106,7 +165,18 @@ export const processChatMessage = inngest.createFunction(
       const imageContext = imageDescriptions.length
         ? `\n\nAttached image descriptions:\n${imageDescriptions.map(({ filename, description }) => `- ${filename}: ${description}`).join("\n")}`
         : ""
-      const network = createFinancialPolicyAssistantNetwork(conversationId)
+      const network = createFinancialPolicyAssistantNetwork(
+        conversationId,
+        async (askedQuestions) => {
+          questions = askedQuestions
+          await convex.mutation(api.messages.updateAssistantMessage, {
+            assistantMessageId,
+            content: "A few details will help me find the right options for you.",
+            status: "processing",
+            questions: askedQuestions,
+          })
+        }
+      )
       const result = await network.run(`${promptWithContext}${imageContext}`)
 
       const messages = result.state.results
@@ -143,10 +213,18 @@ export const processChatMessage = inngest.createFunction(
         }
       }
 
-      if (!finalAnswer.trim()) {
+      if (questions.length === 0 && finalAnswer.trim()) {
+        questions = getLegacyClarifyingQuestions(finalAnswer)
+      }
+
+      if (questions.length > 0) {
+        finalAnswer = "A few details will help me find the right options for you."
+      } else if (!finalAnswer.trim()) {
         finalAnswer = "No response generated."
 
         status = "cancelled"
+      } else {
+        finalAnswer = finalAnswer.replace(/<clarifying_questions>[\s\S]*?<\/clarifying_questions>/i, "").trim()
       }
     } catch (error) {
       status = "cancelled"
@@ -162,6 +240,7 @@ export const processChatMessage = inngest.createFunction(
         assistantMessageId,
         content: finalAnswer,
         status,
+        questions,
       })
     })
 
