@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { inngest } from "../../../inngest/client"
+import { getConvexServiceSecret } from "./convex-secret"
 import { model } from "./model"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
@@ -51,13 +52,14 @@ export const createConversationTitle = inngest.createFunction(
       .trim()
 
     if (!title) throw new Error("Conversation title was empty.")
+    const serviceSecret = getConvexServiceSecret()
 
     await step.run("save-conversation-title", () =>
       convex.mutation(api.conversations.setTitleFromAgent, {
         conversationId: conversationId as Id<"conversations">,
         title,
         userId,
-        serviceSecret: process.env.INNGEST_CONVEX_SECRET!,
+        serviceSecret,
       }),
     )
 

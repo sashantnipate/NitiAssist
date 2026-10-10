@@ -91,6 +91,7 @@ export const saveDescription = mutation({
   args: {
     documentId: v.id("documents"),
     description: v.string(),
+    filename: v.optional(v.string()),
     status: v.union(v.literal("ready"), v.literal("failed")),
     serviceSecret: v.string(),
   },
@@ -103,6 +104,7 @@ export const saveDescription = mutation({
     await ctx.db.patch(args.documentId, {
       description: args.description,
       status: args.status,
+      ...(args.filename ? { filename: args.filename } : {}),
     });
   },
 });

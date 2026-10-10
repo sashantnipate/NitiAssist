@@ -219,7 +219,7 @@ export function Chat({ conversationId = null }: ChatProps) {
             className="size-auto p-0"
             description="Ask a question to start a new conversation."
             title="How can I help?"
-          />
+            />
           <div className="w-full max-w-3xl">{prompt}</div>
         </div>
       )}

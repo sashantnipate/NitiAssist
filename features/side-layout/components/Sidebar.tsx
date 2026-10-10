@@ -1,6 +1,6 @@
 "use client"
 
-import { LeafyGreen, SquarePen } from "lucide-react"
+import { LeafyGreen, LibraryBig, SquarePen } from "lucide-react"
 
 import {
   Sidebar,
@@ -91,6 +91,21 @@ export function AppSidebar() {
                     className={state === "collapsed" ? "sr-only" : undefined}
                   >
                     New chat
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  tooltip="Library"
+                  aria-label="Library"
+                  render={<Link href="/library" />}
+                >
+                  <LibraryBig />
+                  <span
+                    className={state === "collapsed" ? "sr-only" : undefined}
+                  >
+                    Library
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
