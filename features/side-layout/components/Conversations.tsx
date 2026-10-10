@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { MessageCircle } from "lucide-react"
 
 import { useConversations } from "@/hooks/useConversation"
@@ -72,6 +73,8 @@ function ConversationList({
   scrollable?: boolean
   fill?: boolean
 }) {
+  const pathname = usePathname()
+
   if (conversations.length === 0) {
     return (
       <p className="px-2 py-1.5 text-sm text-muted-foreground">
@@ -91,17 +94,26 @@ function ConversationList({
       }
     >
       <div className="flex flex-col gap-1 pr-2">
-        {conversations.map((conversation) => (
-          <Button
-            key={conversation._id}
-            variant="ghost"
-            nativeButton={false}
-            render={<Link href={`/${conversation._id}`} />}
-            className="h-auto min-h-8 w-full justify-start px-2 py-1.5 text-left font-normal whitespace-normal"
-          >
-            {conversation.title}
-          </Button>
-        ))}
+        {conversations.map((conversation) => {
+          const isActive = pathname === `/${conversation._id}`
+
+          return (
+            <Button
+              key={conversation._id}
+              variant="ghost"
+              nativeButton={false}
+              render={<Link href={`/${conversation._id}`} />}
+              aria-current={isActive ? "page" : undefined}
+              className={`h-auto min-h-8 w-full justify-start px-2 py-1.5 text-left font-normal whitespace-normal hover:bg-sidebar-accent hover:text-sidebar-accent-foreground${
+                isActive
+                  ? " bg-sidebar-accent text-sidebar-accent-foreground"
+                  : ""
+              }`}
+            >
+              {conversation.title}
+            </Button>
+          )
+        })}
       </div>
     </ScrollArea>
   )
