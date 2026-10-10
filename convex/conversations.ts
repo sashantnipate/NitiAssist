@@ -40,6 +40,28 @@ export const getById = query({
     }
 })
 
+export const setTitleFromAgent = mutation({
+    args: {
+        conversationId: v.id("conversations"),
+        title: v.string(),
+        userId: v.string(),
+        serviceSecret: v.string(),
+    },
+    handler: async (ctx, args) => {
+        if (!process.env.INNGEST_CONVEX_SECRET || args.serviceSecret !== process.env.INNGEST_CONVEX_SECRET) {
+            throw new Error("Unauthorized service request");
+        }
+        const conversation = await ctx.db.get(args.conversationId);
+        if (!conversation || conversation.ownerId !== args.userId) {
+            throw new Error("Conversation not found or unauthorized");
+        }
+        await ctx.db.patch(args.conversationId, {
+            title: args.title,
+            updateAt: Date.now(),
+        });
+    },
+})
+
 export const getByOwner = query({
   args: {},
   handler: async (ctx) => {

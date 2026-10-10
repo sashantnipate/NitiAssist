@@ -12,12 +12,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useDocumentLibrary, useDeleteDocument } from "@/hooks/useDocuments"
+import { useDocumentLibrary } from "@/hooks/useDocuments"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { ImagePlus, Paperclip, Square, Trash2, X } from "lucide-react"
+import { ImagePlus, Paperclip, Square, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { FileUIPart } from "ai"
 import { toast } from "sonner"
+import { LibraryGallery } from "@/features/chat/components/Library"
 
 type ChatPromptProps = {
   disabled?: boolean
@@ -94,7 +95,6 @@ export function ChatPrompt({
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Id<"documents">[]>([])
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const library = useDocumentLibrary()
-  const deleteDocument = useDeleteDocument()
 
   const handleSubmit = async ({ text, files }: { text: string; files: FileUIPart[] }) => {
     const promptText = text.trim()
@@ -195,16 +195,11 @@ export function ChatPrompt({
       <Dialog onOpenChange={setIsLibraryOpen} open={isLibraryOpen}>
         <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader><DialogTitle>Your saved images</DialogTitle></DialogHeader>
-          {!library ? <p className="text-sm text-muted-foreground">Loading images…</p> : library.length === 0 ? <p className="text-sm text-muted-foreground">Your uploaded images will appear here.</p> : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {library.map((document) => <LibraryImage key={document._id} document={document} selected={selectedDocumentIds.includes(document._id)} onSelect={() => setSelectedDocumentIds((ids) => ids.includes(document._id) ? ids.filter((id) => id !== document._id) : [...ids, document._id])} onDelete={async () => {
-                const response = await fetch("/api/uploads/r2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation: "delete", objectKey: document.objectKey }) })
-                if (!response.ok) throw new Error("Could not delete this image.")
-                await deleteDocument({ documentId: document._id })
-                setSelectedDocumentIds((ids) => ids.filter((id) => id !== document._id))
-              }} />)}
-            </div>
-          )}
+          <LibraryGallery
+            onDeleteDocument={(id) => setSelectedDocumentIds((ids) => ids.filter((item) => item !== id))}
+            onToggleDocument={(id) => setSelectedDocumentIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id])}
+            selectedDocumentIds={selectedDocumentIds}
+          />
           <div className="flex justify-end"><Button onClick={() => setIsLibraryOpen(false)} type="button">Done</Button></div>
         </DialogContent>
       </Dialog>
@@ -220,27 +215,4 @@ function PromptFileButton() {
 function PromptSubmitControl({ hasPromptText, disabled }: { hasPromptText: boolean; disabled: boolean }) {
   const attachments = usePromptInputAttachments()
   return <PromptInputSubmit aria-label="Submit prompt" className="size-9 [&>svg]:size-5" disabled={disabled || (!hasPromptText && !attachments.files.length)} title="Submit prompt" />
-}
-
-function LibraryImage({ document, selected, onSelect, onDelete }: { document: Doc<"documents">; selected: boolean; onSelect: () => void; onDelete: () => Promise<void> }) {
-  const [src, setSrc] = useState("")
-  const [deleting, setDeleting] = useState(false)
-  useEffect(() => {
-    void fetch("/api/uploads/r2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation: "read", objectKey: document.objectKey }) })
-      .then(async (response) => { if (!response.ok) throw new Error(); return response.json() })
-      .then((result: { readUrl: string }) => setSrc(result.readUrl))
-      .catch(() => setSrc(""))
-  }, [document.objectKey, document.status])
-
-  return (
-    <div className={`overflow-hidden rounded-md border ${selected ? "ring-2 ring-primary" : ""}`}>
-      <button className="block w-full text-left" disabled={document.status === "processing"} onClick={onSelect} type="button">
-        {src ? <img alt={document.filename} className="aspect-square w-full object-cover" src={src} /> : <div className="flex aspect-square items-center justify-center bg-muted text-xs text-muted-foreground">{document.status}</div>}
-        <span className="block truncate p-2 text-xs">{document.filename}</span>
-      </button>
-      <Button aria-label={`Delete ${document.filename}`} className="m-1" disabled={deleting} onClick={async () => { setDeleting(true); try { await onDelete() } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete image.") } finally { setDeleting(false) } }} size="sm" type="button" variant="ghost">
-        {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />} Delete
-      </Button>
-    </div>
-  )
 }
