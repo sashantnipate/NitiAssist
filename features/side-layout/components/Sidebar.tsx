@@ -1,6 +1,6 @@
 "use client"
 
-import { Landmark, LeafyGreen, LibraryBig, SquarePen } from "lucide-react"
+import { Landmark, LibraryBig, SquarePen } from "lucide-react"
 
 import {
   Sidebar,
@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Conversations } from "@/features/side-layout/components/Conversations"
+import { Logo } from "@/components/Logo"
 import Link from "next/link"
 
 export function AppSidebar() {
@@ -47,27 +48,26 @@ export function AppSidebar() {
           }}
         >
           <SidebarHeader className="border-b-0">
-            <div
-              className={
-                state === "collapsed"
-                  ? "relative flex size-8 shrink-0 items-center justify-center"
-                  : "flex min-w-0 items-center gap-2"
-              }
-            >
-              <LeafyGreen
-                aria-hidden="true"
-                className={
-                  state === "collapsed"
-                    ? "size-6 shrink-0 transition-opacity group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0"
-                    : "size-6 shrink-0"
-                }
-              />
-              {state === "expanded" && (
-                <span className="truncate text-sm font-semibold">
-                  NitiAssist
-                </span>
-              )}
-            </div>
+            {state === "collapsed" ? (
+              <div className="relative flex size-8 shrink-0 items-center justify-center">
+                <Logo
+                  variant="icon"
+                  className="size-7 shrink-0 transition-opacity group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0"
+                />
+              </div>
+            ) : (
+              <Link
+                href="/"
+                className="flex min-w-0 items-center overflow-hidden py-1"
+                aria-label="NitiAssist home"
+              >
+                <Logo
+                  variant="full"
+                  className="h-8 w-auto max-w-[170px]"
+                  priority
+                />
+              </Link>
+            )}
             <SidebarTrigger
               className={
                 state === "collapsed"

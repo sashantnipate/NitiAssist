@@ -5,6 +5,24 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from 'sonner';
+
+export const metadata: Metadata = {
+  icons: [
+    {
+      rel: "icon",
+      url: "/logo-icon.svg",
+      type: "image/svg+xml",
+      media: "(prefers-color-scheme: light)",
+    },
+    {
+      rel: "icon",
+      url: "/logo-icon-dark.svg",
+      type: "image/svg+xml",
+      media: "(prefers-color-scheme: dark)",
+    },
+  ],
+};
+
 const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",

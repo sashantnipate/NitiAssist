@@ -122,6 +122,7 @@ function SidebarMenuButton({
     <Button
       data-slot="sidebar-menu-button"
       variant="ghost"
+      nativeButton={false}
       className={cn(
         "h-9 w-full justify-start gap-3 px-2.5 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         state === "collapsed" && "justify-center px-0",

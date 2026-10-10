@@ -94,8 +94,8 @@ function ConversationList({
         {conversations.map((conversation) => (
           <Button
             key={conversation._id}
-            type="button"
             variant="ghost"
+            nativeButton={false}
             render={<Link href={`/${conversation._id}`} />}
             className="h-auto min-h-8 w-full justify-start px-2 py-1.5 text-left font-normal whitespace-normal"
           >
