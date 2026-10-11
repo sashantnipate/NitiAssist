@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChatMessages } from "./ChatMessages"
 import { ChatPrompt } from "./ChatPrompt"
-import { getLegacyClarifyingQuestions } from "../clarifying-questions"
+import { getSavedClarifyingQuestions } from "../clarifying-questions"
 import { Logo } from "@/components/Logo"
 import {
   cancelChatAgent,
@@ -61,9 +61,7 @@ export function Chat({ conversationId = null }: ChatProps) {
     latestMessage?.role === "assistant"
       ? latestMessage.questions?.length
         ? latestMessage.questions
-        : latestMessage.status === "completed"
-          ? getLegacyClarifyingQuestions(latestMessage.content)
-          : []
+        : getSavedClarifyingQuestions(latestMessage.content)
       : []
 
   useEffect(() => {

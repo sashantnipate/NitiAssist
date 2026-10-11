@@ -18,7 +18,7 @@ export function createGetUserDocumentContextTool({
   return createTool({
     name: "get_user_document_context",
     description:
-      "Load the user's saved document titles and extracted descriptions from their private Library. Call this before making personalized eligibility or scheme recommendations when the conversation does not already provide enough applicant details. Use only facts present in these descriptions. If no useful context is available, ask the user focused questions for the missing details.",
+      "Load the user's saved document titles and extracted descriptions from their private Library. Call this once at the start of every user turn before answering, even if the conversation already contains applicant details. Use only facts relevant to the request and present in these descriptions. If no useful context is available, ask up to two focused questions only when essential applicant details are still missing.",
     parameters: z.object({}),
     handler: async () => {
       const documents = await convex.query(api.documents.listForAgent, {
@@ -40,7 +40,7 @@ export function createGetUserDocumentContextTool({
         documents: summarizedDocuments,
         instruction: hasUsableContext
           ? "Use the returned descriptions as applicant-provided evidence. Do not infer facts that are absent."
-          : "There is no usable extracted document context. Ask focused questions to collect the essential applicant details before personalized eligibility research.",
+          : "There is no usable extracted document context. Ask no more than two focused questions, and only if missing applicant details are essential to this request, before personalized eligibility research.",
       };
     },
   });

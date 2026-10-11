@@ -169,7 +169,7 @@ export function ChatPrompt({
         disabled={disabled}
         onUseAnswers={(answers) => {
           const answerText = answers
-            .map(({ question, answer }) => `- ${question}: ${answer}`)
+            .map(({ question, answer }, index) => `${index + 1}. ${question}: ${answer}`)
             .join("\n")
           setValue((current) =>
             [current.trim(), answerText].filter(Boolean).join("\n\n")

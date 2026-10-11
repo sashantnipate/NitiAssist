@@ -17,7 +17,6 @@ import { FINANCIAL_POLICY_ASSISTANT_PROMPT } from "./constants"
 import { getImageDescriptions } from "./analyze-images"
 import { model } from "./model"
 import { getConvexServiceSecret } from "./convex-secret"
-import { getLegacyClarifyingQuestions } from "../clarifying-questions"
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
@@ -34,10 +33,10 @@ function createAskClarifyingQuestionsTool(
   const tool = createTool({
     name: "ask_clarifying_questions",
     description:
-      "Show up to three focused questions in the chat composer when essential applicant details are missing. Use this instead of asking those questions in the assistant message text.",
+      "Ask at most two relevant, essential follow-up questions in one round. Questions are also saved in the assistant message. Do not ask for details already in the conversation or user documents.",
     parameters: z.object({
       questions: z.array(z.object({
-        id: z.string(),
+        id: z.string().optional(),
         type: z.enum(["yes-no", "single-choice", "text"]),
         question: z.string(),
         options: z.array(z.string()).optional(),
@@ -52,25 +51,49 @@ function createAskClarifyingQuestionsTool(
         }
 
         return [{
-          id: item.id.trim() || `clarification-${index + 1}`,
+          id: item.id?.trim() || `clarification-${index + 1}`,
           type: item.type,
           question,
           ...(item.type === "single-choice" ? { options: options?.slice(0, 6) } : {}),
         }]
-      }).slice(0, 3)
-      if (validQuestions.length > 0) await onQuestions(validQuestions)
-      return "The questions are displayed above the chat input. Do not repeat them in your reply."
+      }).slice(0, 2)
+      if (validQuestions.length === 0) {
+        return "No questions were displayed. Call this tool again with one or two valid, relevant questions if essential information is missing."
+      }
+
+      await onQuestions(validQuestions)
+      return "The questions are displayed above the chat input and saved in the assistant message. Do not add other questions or repeat them in your reply."
     },
   })
   tool.strict = false
   return tool
 }
 
+function createSaveFinalResponseTool(
+  onSave: (content: string) => void | Promise<void>
+) {
+  return createTool({
+    name: "save_final_response",
+    description:
+      "Persist the completed response as the assistant's final message. Call this once after preparing the final answer.",
+    parameters: z.object({ content: z.string() }),
+    handler: async ({ content }) => {
+      const response = content.trim()
+      if (!response) return "The response was empty and was not saved. Provide a non-empty final response and try again."
+
+      await onSave(response)
+      return "The final response was saved to the conversation."
+    },
+  })
+}
+
 function createFinancialPolicyAssistantNetwork(
   conversationId: Id<"conversations">,
-  onQuestions: (questions: ClarifyingQuestion[]) => void | Promise<void>
+  onQuestions: (questions: ClarifyingQuestion[]) => void | Promise<void>,
+  onFinalResponse: (content: string) => void | Promise<void>
 ) {
   let clarificationRequested = false
+  let finalResponseSaved = false
 
   const financialPolicyAssistantAgent = createAgent({
     name: "Financial Policy Assistant Agent",
@@ -93,15 +116,36 @@ function createFinancialPolicyAssistantNetwork(
     ],
   })
 
-  // Single-agent network orchestrator with custom router to bypass default select_agent schema creation.
+  const finalResponseAgent = createAgent({
+    name: "Final Response Agent",
+    description:
+      "Turns the research agent's findings into a concise answer and saves it to the conversation.",
+    system: `You are NitiAssist's final response agent. Read the user's request and the preceding agent's findings, then write a concise, useful final answer.
+
+- Base claims only on the conversation and preceding agent results. Preserve relevant source links and citations from research. Never invent scheme details or claim research that was not done.
+- Do not ask clarification questions in this stage. Clarification is handled before you are selected; if information is still missing, state the limitation clearly.
+- Use Markdown. Use a table when comparing multiple schemes.
+- After composing the complete response, call save_final_response with the exact response text. Do not finish without saving it.`,
+    model,
+    tools: [
+      createSaveFinalResponseTool(async (content) => {
+        await onFinalResponse(content)
+        finalResponseSaved = true
+      }),
+    ],
+  })
+
+  // Reserve the final network iteration for response synthesis and persistence.
   return createNetwork({
     name: "Financial Policy Assistant Network",
-    agents: [financialPolicyAssistantAgent],
+    agents: [financialPolicyAssistantAgent, finalResponseAgent],
     defaultModel: model,
     router: ({ callCount, lastResult }) => {
-      if (clarificationRequested) return
-      if (callCount >= 5) return
-      if (callCount > 0 && (!lastResult?.toolCalls || lastResult.toolCalls.length === 0)) return
+      if (clarificationRequested || finalResponseSaved) return
+      if (callCount >= 4) return finalResponseAgent
+      if (callCount > 0 && (!lastResult?.toolCalls || lastResult.toolCalls.length === 0)) {
+        return finalResponseAgent
+      }
       return financialPolicyAssistantAgent
     },
     maxIter: 5,
@@ -157,6 +201,7 @@ export const processChatMessage = inngest.createFunction(
 
     let finalAnswer = ""
     let questions: ClarifyingQuestion[] = []
+    let finalResponseSaved = false
 
     let status: "completed" | "cancelled" = "completed"
 
@@ -169,12 +214,26 @@ export const processChatMessage = inngest.createFunction(
         conversationId,
         async (askedQuestions) => {
           questions = askedQuestions
+          const questionMessage = [
+            "To help me find the right options, please answer:",
+            ...askedQuestions.map(({ question }, index) => `${index + 1}. ${question}`),
+          ].join("\n")
           await convex.mutation(api.messages.updateAssistantMessage, {
             assistantMessageId,
-            content: "A few details will help me find the right options for you.",
+            content: questionMessage,
             status: "processing",
             questions: askedQuestions,
           })
+        },
+        async (content) => {
+          finalAnswer = content
+          await convex.mutation(api.messages.updateAssistantMessage, {
+            assistantMessageId,
+            content,
+            status: "completed",
+            questions: [],
+          })
+          finalResponseSaved = true
         }
       )
       const result = await network.run(`${promptWithContext}${imageContext}`)
@@ -189,7 +248,7 @@ export const processChatMessage = inngest.createFunction(
           (message.type === "text" || ("content" in message && message.content))
       )
 
-      if (
+      if (!finalResponseSaved &&
         lastTextMessage &&
         "content" in lastTextMessage &&
         lastTextMessage.content
@@ -213,35 +272,37 @@ export const processChatMessage = inngest.createFunction(
         }
       }
 
-      if (questions.length === 0 && finalAnswer.trim()) {
-        questions = getLegacyClarifyingQuestions(finalAnswer)
-      }
-
       if (questions.length > 0) {
-        finalAnswer = "A few details will help me find the right options for you."
-      } else if (!finalAnswer.trim()) {
+        finalAnswer = [
+          "To help me find the right options, please answer:",
+          ...questions.map(({ question }, index) => `${index + 1}. ${question}`),
+        ].join("\n")
+      } else if (!finalResponseSaved && !finalAnswer.trim()) {
         finalAnswer = "No response generated."
 
         status = "cancelled"
-      } else {
+      } else if (!finalResponseSaved) {
         finalAnswer = finalAnswer.replace(/<clarifying_questions>[\s\S]*?<\/clarifying_questions>/i, "").trim()
       }
     } catch (error) {
-      status = "cancelled"
-
-      finalAnswer =
-        error instanceof Error
-          ? `Error processing request: ${error.message}`
-          : "An unexpected error occurred while processing the request."
+      if (!finalResponseSaved) {
+        status = "cancelled"
+        finalAnswer =
+          error instanceof Error
+            ? `Error processing request: ${error.message}`
+            : "An unexpected error occurred while processing the request."
+      }
     }
 
     await step.run("update-convex-message", async () => {
-      await convex.mutation(api.messages.updateAssistantMessage, {
-        assistantMessageId,
-        content: finalAnswer,
-        status,
-        questions,
-      })
+      if (!finalResponseSaved) {
+        await convex.mutation(api.messages.updateAssistantMessage, {
+          assistantMessageId,
+          content: finalAnswer,
+          status,
+          questions,
+        })
+      }
     })
 
     return {

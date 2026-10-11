@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { Check, Copy, FileText, Loader } from "lucide-react"
 import Image from "next/image"
-import { hideLegacyClarifyingQuestions } from "../clarifying-questions"
+import {
+  getSavedClarifyingQuestions,
+  hideLegacyClarifyingQuestions,
+} from "../clarifying-questions"
 
 type ChatMessage = Doc<"messages"> & {
   documents?: Array<{
@@ -61,7 +64,10 @@ export function ChatMessages({
           message.role === "assistant" && (isProcessing || !message.content)
             ? "Thinking"
             : message.content
-        const content = message.role === "assistant"
+        const legacyQuestions = message.role === "assistant"
+          ? getSavedClarifyingQuestions(rawContent)
+          : []
+        const content = message.role === "assistant" && legacyQuestions.length > 0
           ? hideLegacyClarifyingQuestions(rawContent)
           : rawContent
 
